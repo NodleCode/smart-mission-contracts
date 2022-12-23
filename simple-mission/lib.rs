@@ -4,6 +4,7 @@ use ink_lang as ink;
 
 #[ink::contract]
 pub mod simple_mission {
+    use ink_prelude::vec::Vec;
     use ink_primitives::KeyPtr;
     use ink_storage::traits::{SpreadAllocate, SpreadLayout};
 
@@ -28,7 +29,13 @@ pub mod simple_mission {
     #[derive(SpreadAllocate, SpreadLayout, scale::Encode, scale::Decode, Clone)]
     #[cfg_attr(
         feature = "std",
-        derive(scale_info::TypeInfo, ink_storage::traits::StorageLayout, Debug)
+        derive(
+            scale_info::TypeInfo,
+            ink_storage::traits::StorageLayout,
+            Debug,
+            Eq,
+            PartialEq
+        )
     )]
     pub struct SimpleMission {
         /// The whitelisted operator for the mission
@@ -37,7 +44,10 @@ pub mod simple_mission {
         allowance: Balance,
         /// The blocknumber from which a locked but unfulfilled mission will be effectively unlocked
         unlock_block_number: BlockNumber,
+        /// Could be the IPFS CID pointing to the mission's bundle (manifest + wasm for the edge device)
+        data: Vec<u8>,
     }
+
     impl SimpleMission {
         fn status(&self, block_number: BlockNumber) -> MissionStatus {
             if block_number < self.unlock_block_number {
@@ -111,6 +121,7 @@ pub mod simple_mission {
             operator: AccountId,
             allowance: Balance,
             unlock_block_number: BlockNumber,
+            data: Vec<u8>,
         ) -> Result<()> {
             if self.env().caller() != self.owner {
                 return Err(Error::PermissionDenied);
@@ -133,6 +144,7 @@ pub mod simple_mission {
                 operator,
                 allowance,
                 unlock_block_number,
+                data,
             });
 
             Self::env().emit_event(MissionReady {
@@ -211,10 +223,10 @@ pub mod simple_mission {
             let mut mission = OwnedMission::new();
 
             set_caller(accounts.alice);
-            assert_eq!(mission.kick_off(accounts.eve, 80, 1), Ok(()));
+            assert_eq!(mission.kick_off(accounts.eve, 80, 1, vec![]), Ok(()));
 
             assert_eq!(
-                mission.kick_off(accounts.eve, 10, 1),
+                mission.kick_off(accounts.eve, 10, 1, vec![]),
                 Err(Error::NotAllowedWhileMissionIsOngoing)
             );
         }
@@ -230,7 +242,7 @@ pub mod simple_mission {
 
             set_caller(accounts.eve);
             assert_eq!(
-                mission.kick_off(accounts.eve, 80, 1),
+                mission.kick_off(accounts.eve, 80, 1, vec![]),
                 Err(Error::PermissionDenied)
             );
         }
@@ -248,7 +260,7 @@ pub mod simple_mission {
 
             set_caller(accounts.alice);
             assert_eq!(
-                mission.kick_off(accounts.eve, 80, 1),
+                mission.kick_off(accounts.eve, 80, 1, vec![]),
                 Err(Error::UnlockBlockNumberIsInPast)
             );
         }
@@ -290,7 +302,7 @@ pub mod simple_mission {
             let mut mission = OwnedMission::new();
 
             set_caller(accounts.alice);
-            assert_eq!(mission.kick_off(accounts.eve, 80, 1), Ok(()));
+            assert_eq!(mission.kick_off(accounts.eve, 80, 1, vec![]), Ok(()));
 
             set_caller(accounts.alice);
             assert_eq!(
@@ -310,7 +322,7 @@ pub mod simple_mission {
 
             set_caller(accounts.alice);
             let allowance = 80;
-            assert_eq!(mission.kick_off(accounts.eve, allowance, 1), Ok(()));
+            assert_eq!(mission.kick_off(accounts.eve, allowance, 1, vec![]), Ok(()));
             assert_eq!(mission.status(), MissionStatus::Locked);
 
             set_caller(accounts.eve);
@@ -332,7 +344,7 @@ pub mod simple_mission {
 
             set_caller(accounts.alice);
             let allowance = 80;
-            assert_eq!(mission.kick_off(accounts.eve, allowance, 1), Ok(()));
+            assert_eq!(mission.kick_off(accounts.eve, allowance, 1, vec![]), Ok(()));
             assert_eq!(mission.status(), MissionStatus::Locked);
 
             set_caller(accounts.django);
@@ -350,7 +362,7 @@ pub mod simple_mission {
 
             set_caller(accounts.alice);
             let allowance = 80;
-            assert_eq!(mission.kick_off(accounts.eve, allowance, 2), Ok(()));
+            assert_eq!(mission.kick_off(accounts.eve, allowance, 2, vec![]), Ok(()));
             assert_eq!(mission.status(), MissionStatus::Locked);
 
             advance_block();
@@ -361,6 +373,37 @@ pub mod simple_mission {
 
             set_caller(accounts.eve);
             assert_eq!(mission.fulfill(), Err(Error::MissionNotOngoing));
+        }
+
+        #[ink::test]
+        fn mission_reads_correctly() {
+            let initial_balance = 100;
+            let accounts = default_accounts();
+
+            set_caller(accounts.alice);
+            set_balance(contract_id(), initial_balance);
+            let mut mission = OwnedMission::new();
+            let mission_details = SimpleMission {
+                operator: accounts.eve,
+                allowance: 80,
+                unlock_block_number: 1,
+                data: "QmQMUCNyCtHKeePsfQvD8gtWs1789HERHUUA6fMhZxZBtA"
+                    .as_bytes()
+                    .to_vec(),
+            };
+
+            set_caller(accounts.alice);
+            assert_eq!(
+                mission.kick_off(
+                    mission_details.operator,
+                    mission_details.allowance,
+                    mission_details.unlock_block_number,
+                    mission_details.data.clone()
+                ),
+                Ok(())
+            );
+            assert_eq!(mission.mission(), Some(mission_details));
+            assert_eq!(mission.owner(), accounts.alice);
         }
 
         fn contract_id() -> AccountId {
