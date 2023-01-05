@@ -78,7 +78,9 @@ pub mod simple_mission {
     }
 
     #[ink(event)]
-    pub struct MissionAccomplished {}
+    pub struct MissionAccomplished {
+        memo: Vec<u8>,
+    }
 
     #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
@@ -157,7 +159,7 @@ pub mod simple_mission {
         }
 
         #[ink(message)]
-        pub fn fulfill(&mut self) -> Result<()> {
+        pub fn fulfill(&mut self, memo: Vec<u8>) -> Result<()> {
             if let Some(mission) = &self.mission {
                 if self.env().caller() != mission.operator {
                     return Err(Error::PermissionDenied);
@@ -171,7 +173,7 @@ pub mod simple_mission {
                     .map_err(|_| Error::AllowanceTransferFailed)?;
 
                 self.mission = None;
-                Self::env().emit_event(MissionAccomplished {});
+                Self::env().emit_event(MissionAccomplished { memo });
                 Ok(())
             } else {
                 Err(Error::MissionNotOngoing)
@@ -326,7 +328,10 @@ pub mod simple_mission {
             assert_eq!(mission.status(), MissionStatus::Locked);
 
             set_caller(accounts.eve);
-            assert_eq!(mission.fulfill(), Ok(()));
+            assert_eq!(
+                mission.fulfill("off-chain proof ref: x".as_bytes().to_vec()),
+                Ok(())
+            );
 
             assert_eq!(get_balance(accounts.eve), allowance);
             assert_eq!(get_balance(contract_id()), initial_balance - allowance);
@@ -348,7 +353,7 @@ pub mod simple_mission {
             assert_eq!(mission.status(), MissionStatus::Locked);
 
             set_caller(accounts.django);
-            assert_eq!(mission.fulfill(), Err(Error::PermissionDenied));
+            assert_eq!(mission.fulfill(vec![]), Err(Error::PermissionDenied));
         }
 
         #[ink::test]
@@ -372,7 +377,10 @@ pub mod simple_mission {
             assert_eq!(mission.status(), MissionStatus::Loaded);
 
             set_caller(accounts.eve);
-            assert_eq!(mission.fulfill(), Err(Error::MissionNotOngoing));
+            assert_eq!(
+                mission.fulfill("memo".as_bytes().to_vec()),
+                Err(Error::MissionNotOngoing)
+            );
         }
 
         #[ink::test]
