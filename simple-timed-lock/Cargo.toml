@@ -1,5 +1,5 @@
 [package]
-name = "simple-mission"
+name = "simple-timed-lock"
 version = "0.1.0"
 authors = ["aliX <alex@nodle.com>"]
 edition = "2021"
@@ -16,7 +16,7 @@ scale = { package = "parity-scale-codec", version = "3", default-features = fals
 scale-info = { version = "2", default-features = false, features = ["derive"], optional = true }
 
 [lib]
-name = "simple_mission"
+name = "simple_timed_lock"
 path = "lib.rs"
 crate-type = [
 	"cdylib",

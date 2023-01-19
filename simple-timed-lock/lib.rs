@@ -3,7 +3,7 @@
 use ink_lang as ink;
 
 #[ink::contract]
-pub mod simple_mission {
+pub mod mission {
     use ink_prelude::vec::Vec;
     use ink_primitives::KeyPtr;
     use ink_storage::traits::{SpreadAllocate, SpreadLayout};
@@ -13,16 +13,16 @@ pub mod simple_mission {
         feature = "std",
         derive(scale_info::TypeInfo, ink_storage::traits::StorageLayout, Debug)
     )]
-    pub enum MissionStatus {
+    pub enum Status {
         /// The initial status of the mission. Whenever a mission is accomplished, the contract goes back to this state
         Loaded,
         /// The mission owner has locked the allowance for the mission and kicked off the mission
         Locked,
     }
 
-    impl SpreadAllocate for MissionStatus {
+    impl SpreadAllocate for Status {
         fn allocate_spread(_ptr: &mut KeyPtr) -> Self {
-            MissionStatus::Loaded
+            Status::Loaded
         }
     }
 
@@ -37,7 +37,7 @@ pub mod simple_mission {
             PartialEq
         )
     )]
-    pub struct SimpleMission {
+    pub struct Details {
         /// The whitelisted operator for the mission
         operator: AccountId,
         /// The allowance for the mission
@@ -48,23 +48,23 @@ pub mod simple_mission {
         data: Vec<u8>,
     }
 
-    impl SimpleMission {
-        fn status(&self, block_number: BlockNumber) -> MissionStatus {
+    impl Details {
+        fn status(&self, block_number: BlockNumber) -> Status {
             if block_number < self.unlock_block_number {
-                MissionStatus::Locked
+                Status::Locked
             } else {
-                MissionStatus::Loaded
+                Status::Loaded
             }
         }
     }
 
     #[ink(storage)]
     #[derive(SpreadAllocate)]
-    pub struct OwnedMission {
+    pub struct Mission {
         /// The owner is who instantiated the mission
         owner: AccountId,
         /// Mission spec
-        mission: Option<SimpleMission>,
+        mission: Option<Details>,
     }
 
     #[ink(event)]
@@ -95,18 +95,18 @@ pub mod simple_mission {
 
     pub type Result<T> = core::result::Result<T, Error>;
 
-    impl OwnedMission {
+    impl Mission {
         fn new_init(&mut self) {
             self.owner = self.env().caller();
             self.mission = None;
         }
 
         #[inline]
-        fn status_impl(&self) -> MissionStatus {
+        fn status_impl(&self) -> Status {
             if let Some(mission) = &self.mission {
                 mission.status(self.env().block_number())
             } else {
-                MissionStatus::Loaded
+                Status::Loaded
             }
         }
 
@@ -128,7 +128,7 @@ pub mod simple_mission {
             if self.env().caller() != self.owner {
                 return Err(Error::PermissionDenied);
             }
-            if self.status_impl() != MissionStatus::Loaded {
+            if self.status_impl() != Status::Loaded {
                 return Err(Error::NotAllowedWhileMissionIsOngoing);
             }
             if self.env().block_number() >= unlock_block_number {
@@ -142,7 +142,7 @@ pub mod simple_mission {
                 return Err(Error::InsufficientBalance);
             }
 
-            self.mission = Some(SimpleMission {
+            self.mission = Some(Details {
                 operator,
                 allowance,
                 unlock_block_number,
@@ -164,7 +164,7 @@ pub mod simple_mission {
                 if self.env().caller() != mission.operator {
                     return Err(Error::PermissionDenied);
                 }
-                if mission.status(self.env().block_number()) != MissionStatus::Locked {
+                if mission.status(self.env().block_number()) != Status::Locked {
                     return Err(Error::MissionNotOngoing);
                 }
 
@@ -186,7 +186,7 @@ pub mod simple_mission {
             if self.env().caller() != self.owner {
                 return Err(Error::PermissionDenied);
             }
-            if self.status_impl() != MissionStatus::Loaded {
+            if self.status_impl() != Status::Loaded {
                 return Err(Error::NotAllowedWhileMissionIsOngoing);
             }
 
@@ -194,7 +194,7 @@ pub mod simple_mission {
         }
 
         #[ink(message)]
-        pub fn status(&self) -> MissionStatus {
+        pub fn status(&self) -> Status {
             self.status_impl()
         }
 
@@ -204,7 +204,7 @@ pub mod simple_mission {
         }
 
         #[ink(message)]
-        pub fn mission(&self) -> Option<SimpleMission> {
+        pub fn details(&self) -> Option<Details> {
             self.mission.clone()
         }
     }
@@ -222,7 +222,7 @@ pub mod simple_mission {
 
             set_caller(accounts.alice);
             set_balance(contract_id(), initial_balance);
-            let mut mission = OwnedMission::new();
+            let mut mission = Mission::new();
 
             set_caller(accounts.alice);
             assert_eq!(mission.kick_off(accounts.eve, 80, 1, vec![]), Ok(()));
@@ -240,7 +240,7 @@ pub mod simple_mission {
 
             set_caller(accounts.alice);
             set_balance(contract_id(), initial_balance);
-            let mut mission = OwnedMission::new();
+            let mut mission = Mission::new();
 
             set_caller(accounts.eve);
             assert_eq!(
@@ -256,7 +256,7 @@ pub mod simple_mission {
 
             set_caller(accounts.alice);
             set_balance(contract_id(), initial_balance);
-            let mut mission = OwnedMission::new();
+            let mut mission = Mission::new();
 
             advance_block();
 
@@ -275,7 +275,7 @@ pub mod simple_mission {
 
             set_caller(accounts.alice);
             set_balance(contract_id(), initial_balance);
-            let mut mission = OwnedMission::new();
+            let mut mission = Mission::new();
 
             set_caller(accounts.alice);
             let _ = mission.terminate();
@@ -288,7 +288,7 @@ pub mod simple_mission {
 
             set_caller(accounts.alice);
             set_balance(contract_id(), initial_balance);
-            let mut mission = OwnedMission::new();
+            let mut mission = Mission::new();
 
             set_caller(accounts.eve);
             assert_eq!(mission.terminate(), Err(Error::PermissionDenied));
@@ -301,7 +301,7 @@ pub mod simple_mission {
 
             set_caller(accounts.alice);
             set_balance(contract_id(), initial_balance);
-            let mut mission = OwnedMission::new();
+            let mut mission = Mission::new();
 
             set_caller(accounts.alice);
             assert_eq!(mission.kick_off(accounts.eve, 80, 1, vec![]), Ok(()));
@@ -320,12 +320,12 @@ pub mod simple_mission {
 
             set_caller(accounts.alice);
             set_balance(contract_id(), initial_balance);
-            let mut mission = OwnedMission::new();
+            let mut mission = Mission::new();
 
             set_caller(accounts.alice);
             let allowance = 80;
             assert_eq!(mission.kick_off(accounts.eve, allowance, 1, vec![]), Ok(()));
-            assert_eq!(mission.status(), MissionStatus::Locked);
+            assert_eq!(mission.status(), Status::Locked);
 
             set_caller(accounts.eve);
             assert_eq!(
@@ -335,7 +335,7 @@ pub mod simple_mission {
 
             assert_eq!(get_balance(accounts.eve), allowance);
             assert_eq!(get_balance(contract_id()), initial_balance - allowance);
-            assert_eq!(mission.status(), MissionStatus::Loaded);
+            assert_eq!(mission.status(), Status::Loaded);
         }
 
         #[ink::test]
@@ -345,12 +345,12 @@ pub mod simple_mission {
 
             set_caller(accounts.alice);
             set_balance(contract_id(), initial_balance);
-            let mut mission = OwnedMission::new();
+            let mut mission = Mission::new();
 
             set_caller(accounts.alice);
             let allowance = 80;
             assert_eq!(mission.kick_off(accounts.eve, allowance, 1, vec![]), Ok(()));
-            assert_eq!(mission.status(), MissionStatus::Locked);
+            assert_eq!(mission.status(), Status::Locked);
 
             set_caller(accounts.django);
             assert_eq!(mission.fulfill(vec![]), Err(Error::PermissionDenied));
@@ -363,18 +363,18 @@ pub mod simple_mission {
 
             set_caller(accounts.alice);
             set_balance(contract_id(), initial_balance);
-            let mut mission = OwnedMission::new();
+            let mut mission = Mission::new();
 
             set_caller(accounts.alice);
             let allowance = 80;
             assert_eq!(mission.kick_off(accounts.eve, allowance, 2, vec![]), Ok(()));
-            assert_eq!(mission.status(), MissionStatus::Locked);
+            assert_eq!(mission.status(), Status::Locked);
 
             advance_block();
-            assert_eq!(mission.status(), MissionStatus::Locked);
+            assert_eq!(mission.status(), Status::Locked);
 
             advance_block();
-            assert_eq!(mission.status(), MissionStatus::Loaded);
+            assert_eq!(mission.status(), Status::Loaded);
 
             set_caller(accounts.eve);
             assert_eq!(
@@ -390,8 +390,8 @@ pub mod simple_mission {
 
             set_caller(accounts.alice);
             set_balance(contract_id(), initial_balance);
-            let mut mission = OwnedMission::new();
-            let mission_details = SimpleMission {
+            let mut mission = Mission::new();
+            let details = Details {
                 operator: accounts.eve,
                 allowance: 80,
                 unlock_block_number: 1,
@@ -403,14 +403,14 @@ pub mod simple_mission {
             set_caller(accounts.alice);
             assert_eq!(
                 mission.kick_off(
-                    mission_details.operator,
-                    mission_details.allowance,
-                    mission_details.unlock_block_number,
-                    mission_details.data.clone()
+                    details.operator,
+                    details.allowance,
+                    details.unlock_block_number,
+                    details.data.clone()
                 ),
                 Ok(())
             );
-            assert_eq!(mission.mission(), Some(mission_details));
+            assert_eq!(mission.details(), Some(details));
             assert_eq!(mission.owner(), accounts.alice);
         }
 
