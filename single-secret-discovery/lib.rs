@@ -3,7 +3,7 @@
 use ink_lang as ink;
 
 #[ink::contract]
-pub mod simple_proof_mission {
+pub mod mission {
     use ink_env::{
         hash::{Blake2x256 as Hasher, HashOutput},
         hash_bytes,
@@ -17,7 +17,7 @@ pub mod simple_proof_mission {
         feature = "std",
         derive(scale_info::TypeInfo, ink_storage::traits::StorageLayout, Debug)
     )]
-    pub enum MissionStatus {
+    pub enum Status {
         /// The initial status of the mission. Whenever a mission is accomplished, the contract goes back to this state
         Loaded,
         /// The mission owner has locked the allowance for the mission and kicked off the mission
@@ -26,9 +26,9 @@ pub mod simple_proof_mission {
         Deployed,
     }
 
-    impl SpreadAllocate for MissionStatus {
+    impl SpreadAllocate for Status {
         fn allocate_spread(_ptr: &mut KeyPtr) -> Self {
-            MissionStatus::Loaded
+            Status::Loaded
         }
     }
 
@@ -43,7 +43,7 @@ pub mod simple_proof_mission {
             PartialEq
         )
     )]
-    pub struct SimpleProofMission {
+    pub struct Details {
         /// The whitelisted operator for the mission
         operator: AccountId,
         /// The allowance to the operator for deploying the mission regardless of the result
@@ -62,13 +62,13 @@ pub mod simple_proof_mission {
 
     #[ink(storage)]
     #[derive(SpreadAllocate)]
-    pub struct OwnedMission {
+    pub struct Mission {
         /// The owner is who instantiated the mission
         owner: AccountId,
         /// Mission spec
-        mission: Option<SimpleProofMission>,
+        details: Option<Details>,
         /// Mission status
-        status: MissionStatus,
+        status: Status,
     }
 
     #[ink(event)]
@@ -104,21 +104,21 @@ pub mod simple_proof_mission {
 
     pub type Result<T> = core::result::Result<T, Error>;
 
-    impl OwnedMission {
+    impl Mission {
         fn new_init(&mut self) {
             self.owner = self.env().caller();
-            self.mission = None;
-            self.status = MissionStatus::Loaded;
+            self.details = None;
+            self.status = Status::Loaded;
         }
 
         #[inline]
-        fn status_impl(&self) -> MissionStatus {
-            if let Some(mission) = &self.mission {
+        fn status_impl(&self) -> Status {
+            if let Some(mission) = &self.details {
                 if self.env().block_number() < mission.unlock_block_number {
                     return self.status;
                 }
             }
-            MissionStatus::Loaded
+            Status::Loaded
         }
 
         /// Creates a new instance of this contract.
@@ -141,7 +141,7 @@ pub mod simple_proof_mission {
             if self.env().caller() != self.owner {
                 return Err(Error::PermissionDenied);
             }
-            if self.status_impl() != MissionStatus::Loaded {
+            if self.status_impl() != Status::Loaded {
                 return Err(Error::NotAllowedWhileMissionIsOngoing);
             }
             if self.env().block_number() >= unlock_block_number {
@@ -165,7 +165,7 @@ pub mod simple_proof_mission {
                 unlock_block_number,
             });
 
-            self.mission = Some(SimpleProofMission {
+            self.details = Some(Details {
                 operator,
                 deploy_allowance,
                 accomplished_allowance,
@@ -173,21 +173,27 @@ pub mod simple_proof_mission {
                 hash,
                 data,
             });
-            self.status = MissionStatus::Locked;
+            self.status = Status::Locked;
             Ok(())
         }
 
         #[ink(message)]
+        /// If the operator chooses to collect the base deploy_allowance before attempting to fulfill
+        /// the mission, they will need to accept the mission formally by calling this API. However
+        /// calling `accept` is not needed, if they are willing to fulfil the mission in a single
+        /// call and collect both deploy_allowance and accomplished_allowance at once. This second
+        /// approach is possible only when they have been able to discover the correct `finding`
+        /// which is needed for the `fulfill` API.
         pub fn accept(&mut self) -> Result<()> {
-            if let Some(mission) = &self.mission {
+            if let Some(mission) = &self.details {
                 if self.env().caller() != mission.operator {
                     return Err(Error::PermissionDenied);
                 }
 
                 match self.status_impl() {
-                    MissionStatus::Loaded => return Err(Error::MissionNotOngoing),
-                    MissionStatus::Locked => (),
-                    MissionStatus::Deployed => return Err(Error::MissionAlreadyDeployed),
+                    Status::Loaded => return Err(Error::MissionNotOngoing),
+                    Status::Locked => (),
+                    Status::Deployed => return Err(Error::MissionAlreadyDeployed),
                 }
 
                 self.env()
@@ -196,7 +202,7 @@ pub mod simple_proof_mission {
 
                 Self::env().emit_event(MissionDeployed {});
 
-                self.status = MissionStatus::Deployed;
+                self.status = Status::Deployed;
                 Ok(())
             } else {
                 Err(Error::MissionNotOngoing)
@@ -207,17 +213,15 @@ pub mod simple_proof_mission {
         /// For the simple mission where only the operator can submit a finding, it's okay for the finding to be in clear.
         /// This is because there couldn't be any front-running or replay attacks.
         pub fn fulfill(&mut self, finding: Vec<u8>) -> Result<()> {
-            if let Some(mission) = &self.mission {
+            if let Some(mission) = &self.details {
                 if self.env().caller() != mission.operator {
                     return Err(Error::PermissionDenied);
                 }
 
                 let allowance = match self.status_impl() {
-                    MissionStatus::Loaded => return Err(Error::MissionNotOngoing),
-                    MissionStatus::Locked => {
-                        mission.accomplished_allowance + mission.deploy_allowance
-                    }
-                    MissionStatus::Deployed => mission.accomplished_allowance,
+                    Status::Loaded => return Err(Error::MissionNotOngoing),
+                    Status::Locked => mission.accomplished_allowance + mission.deploy_allowance,
+                    Status::Deployed => mission.accomplished_allowance,
                 };
 
                 let mut output = <Hasher as HashOutput>::Type::default();
@@ -234,8 +238,8 @@ pub mod simple_proof_mission {
 
                 Self::env().emit_event(MissionAccomplished {});
 
-                self.mission = None;
-                self.status = MissionStatus::Loaded;
+                self.details = None;
+                self.status = Status::Loaded;
                 Ok(())
             } else {
                 Err(Error::MissionNotOngoing)
@@ -248,7 +252,7 @@ pub mod simple_proof_mission {
             if self.env().caller() != self.owner {
                 return Err(Error::PermissionDenied);
             }
-            if self.status_impl() != MissionStatus::Loaded {
+            if self.status_impl() != Status::Loaded {
                 return Err(Error::NotAllowedWhileMissionIsOngoing);
             }
 
@@ -256,7 +260,7 @@ pub mod simple_proof_mission {
         }
 
         #[ink(message)]
-        pub fn status(&self) -> MissionStatus {
+        pub fn status(&self) -> Status {
             self.status_impl()
         }
 
@@ -266,8 +270,8 @@ pub mod simple_proof_mission {
         }
 
         #[ink(message)]
-        pub fn mission(&self) -> Option<SimpleProofMission> {
-            self.mission.clone()
+        pub fn details(&self) -> Option<Details> {
+            self.details.clone()
         }
     }
 
@@ -284,7 +288,7 @@ pub mod simple_proof_mission {
 
             set_caller(accounts.alice);
             set_balance(contract_id(), initial_balance);
-            let mut mission = OwnedMission::new();
+            let mut mission = Mission::new();
 
             set_caller(accounts.alice);
             assert_eq!(
@@ -305,7 +309,7 @@ pub mod simple_proof_mission {
 
             set_caller(accounts.alice);
             set_balance(contract_id(), initial_balance);
-            let mut mission = OwnedMission::new();
+            let mut mission = Mission::new();
 
             set_caller(accounts.eve);
             assert_eq!(
@@ -321,7 +325,7 @@ pub mod simple_proof_mission {
 
             set_caller(accounts.alice);
             set_balance(contract_id(), initial_balance);
-            let mut mission = OwnedMission::new();
+            let mut mission = Mission::new();
 
             advance_block();
 
@@ -340,7 +344,7 @@ pub mod simple_proof_mission {
 
             set_caller(accounts.alice);
             set_balance(contract_id(), initial_balance);
-            let mut mission = OwnedMission::new();
+            let mut mission = Mission::new();
 
             set_caller(accounts.alice);
             let _ = mission.terminate();
@@ -353,7 +357,7 @@ pub mod simple_proof_mission {
 
             set_caller(accounts.alice);
             set_balance(contract_id(), initial_balance);
-            let mut mission = OwnedMission::new();
+            let mut mission = Mission::new();
 
             set_caller(accounts.eve);
             assert_eq!(mission.terminate(), Err(Error::PermissionDenied));
@@ -366,7 +370,7 @@ pub mod simple_proof_mission {
 
             set_caller(accounts.alice);
             set_balance(contract_id(), initial_balance);
-            let mut mission = OwnedMission::new();
+            let mut mission = Mission::new();
 
             set_caller(accounts.alice);
             assert_eq!(
@@ -388,7 +392,7 @@ pub mod simple_proof_mission {
 
             set_caller(accounts.alice);
             set_balance(contract_id(), initial_balance);
-            let mut mission = OwnedMission::new();
+            let mut mission = Mission::new();
 
             set_caller(accounts.alice);
             let deploy_allowance = 10;
@@ -410,7 +414,7 @@ pub mod simple_proof_mission {
                 ),
                 Ok(())
             );
-            assert_eq!(mission.status(), MissionStatus::Locked);
+            assert_eq!(mission.status(), Status::Locked);
 
             set_caller(accounts.eve);
             assert_eq!(
@@ -424,7 +428,7 @@ pub mod simple_proof_mission {
 
             assert_eq!(get_balance(accounts.eve), allowance);
             assert_eq!(get_balance(contract_id()), initial_balance - allowance);
-            assert_eq!(mission.status(), MissionStatus::Loaded);
+            assert_eq!(mission.status(), Status::Loaded);
         }
 
         #[ink::test]
@@ -434,7 +438,7 @@ pub mod simple_proof_mission {
 
             set_caller(accounts.alice);
             set_balance(contract_id(), initial_balance);
-            let mut mission = OwnedMission::new();
+            let mut mission = Mission::new();
 
             set_caller(accounts.alice);
             let deploy_allowance = 10;
@@ -456,7 +460,7 @@ pub mod simple_proof_mission {
                 ),
                 Ok(())
             );
-            assert_eq!(mission.status(), MissionStatus::Locked);
+            assert_eq!(mission.status(), Status::Locked);
 
             set_caller(accounts.eve);
             assert_eq!(mission.accept(), Ok(()));
@@ -465,7 +469,7 @@ pub mod simple_proof_mission {
                 get_balance(contract_id()),
                 initial_balance - deploy_allowance
             );
-            assert_eq!(mission.status(), MissionStatus::Deployed);
+            assert_eq!(mission.status(), Status::Deployed);
 
             set_caller(accounts.eve);
             assert_eq!(
@@ -478,7 +482,7 @@ pub mod simple_proof_mission {
             );
             assert_eq!(get_balance(accounts.eve), allowance);
             assert_eq!(get_balance(contract_id()), initial_balance - allowance);
-            assert_eq!(mission.status(), MissionStatus::Loaded);
+            assert_eq!(mission.status(), Status::Loaded);
         }
 
         #[ink::test]
@@ -488,7 +492,7 @@ pub mod simple_proof_mission {
 
             set_caller(accounts.alice);
             set_balance(contract_id(), initial_balance);
-            let mut mission = OwnedMission::new();
+            let mut mission = Mission::new();
 
             set_caller(accounts.alice);
             let deploy_allowance = 10;
@@ -504,7 +508,7 @@ pub mod simple_proof_mission {
                 ),
                 Ok(())
             );
-            assert_eq!(mission.status(), MissionStatus::Locked);
+            assert_eq!(mission.status(), Status::Locked);
 
             set_caller(accounts.django);
             assert_eq!(mission.fulfill(vec![]), Err(Error::PermissionDenied));
@@ -517,7 +521,7 @@ pub mod simple_proof_mission {
 
             set_caller(accounts.alice);
             set_balance(contract_id(), initial_balance);
-            let mut mission = OwnedMission::new();
+            let mut mission = Mission::new();
 
             set_caller(accounts.alice);
             let deploy_allowance = 10;
@@ -533,13 +537,13 @@ pub mod simple_proof_mission {
                 ),
                 Ok(())
             );
-            assert_eq!(mission.status(), MissionStatus::Locked);
+            assert_eq!(mission.status(), Status::Locked);
 
             advance_block();
-            assert_eq!(mission.status(), MissionStatus::Locked);
+            assert_eq!(mission.status(), Status::Locked);
 
             advance_block();
-            assert_eq!(mission.status(), MissionStatus::Loaded);
+            assert_eq!(mission.status(), Status::Loaded);
 
             set_caller(accounts.eve);
             assert_eq!(mission.fulfill(vec![]), Err(Error::MissionNotOngoing));
@@ -552,8 +556,8 @@ pub mod simple_proof_mission {
 
             set_caller(accounts.alice);
             set_balance(contract_id(), initial_balance);
-            let mut mission = OwnedMission::new();
-            let mission_details = SimpleProofMission {
+            let mut mission = Mission::new();
+            let details = Details {
                 operator: accounts.eve,
                 deploy_allowance: 10,
                 accomplished_allowance: 70,
@@ -567,16 +571,16 @@ pub mod simple_proof_mission {
             set_caller(accounts.alice);
             assert_eq!(
                 mission.kick_off(
-                    mission_details.operator,
-                    mission_details.deploy_allowance,
-                    mission_details.accomplished_allowance,
-                    mission_details.unlock_block_number,
+                    details.operator,
+                    details.deploy_allowance,
+                    details.accomplished_allowance,
+                    details.unlock_block_number,
                     Hash::default(),
-                    mission_details.data.clone()
+                    details.data.clone()
                 ),
                 Ok(())
             );
-            assert_eq!(mission.mission(), Some(mission_details));
+            assert_eq!(mission.details(), Some(details));
             assert_eq!(mission.owner(), accounts.alice);
         }
 
