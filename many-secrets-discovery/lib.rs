@@ -298,7 +298,7 @@ pub mod mission {
 
                 let prize_left = self.prize_left_impl();
                 let claim_len = proof_leaves.len() as u32;
-                let entitlement = prize_left.max(claim_len);
+                let entitlement = prize_left.min(claim_len);
 
                 let prize = Balance::from(entitlement)
                     .checked_mul(details.per_secret_prize)
@@ -578,7 +578,6 @@ pub mod mission {
             let deploy_allowance = 10;
             let per_secret_prize = 7;
             let max_prizes = mission_owner_secrets.len() as u32;
-            let allowance = deploy_allowance + per_secret_prize * Balance::from(max_prizes);
             assert_eq!(
                 mission.kick_off(
                     accounts.eve,
@@ -586,7 +585,7 @@ pub mod mission {
                     per_secret_prize,
                     max_prizes as u32,
                     1,
-                    root,
+                    root, // 0x8e53fb3f9832a36d03b8282674d91acd583a87cfef77c6f4ec81910f42b5aa70
                     vec![]
                 ),
                 Ok(())
@@ -595,6 +594,7 @@ pub mod mission {
 
             // Suppose an operator (on behalf of a participants) has discovered the following secrets
             let discovered_secrets = vec!["red".as_bytes().to_vec(), "yoga".as_bytes().to_vec()];
+            let discovered_secrets_len = discovered_secrets.len() as u32;
             // The operator then hashes the discovered secrets to find their positions in the leaves that the mission owner has shared
             let proof_leaves = discovered_secrets
                 .iter()
@@ -613,15 +613,24 @@ pub mod mission {
             assert_eq!(
                 mission.claim(
                     discovered_secrets,
-                    proof.indices().to_vec(),
-                    proof.lemmas().to_vec()
+                    proof.indices().to_vec(), // [9, 6]
+                    proof.lemmas().to_vec()   // [
+                                              // 0xe7afca49ceb08f875382d75f0aecb780d64ecce5610ded8d91bdb8b5734b9101,
+                                              // 0x49dacac652e57fba5307c78dc071cf54b2d5914e2bbf59f33e728431356fe36f,
+                                              // 0x056ec8ed2c97f247470d7c1211d665437f3bca14a9e1c28306750bc444532a3b
+                                              // ]
                 ),
                 Ok(())
             );
 
-            assert_eq!(get_balance(accounts.eve), allowance);
-            assert_eq!(get_balance(contract_id()), initial_balance - allowance);
-            assert_eq!(mission.status(), Status::Loaded);
+            let operator_earning =
+                deploy_allowance + per_secret_prize * Balance::from(discovered_secrets_len);
+            assert_eq!(get_balance(accounts.eve), operator_earning);
+            assert_eq!(
+                get_balance(contract_id()),
+                initial_balance - operator_earning
+            );
+            assert_eq!(mission.status(), Status::Deployed);
         }
 
         #[ink::test]
