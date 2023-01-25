@@ -11,16 +11,25 @@ env:
 
 jobs:
   build:
+    strategy:
+      matrix:
+        member: ["simple-timed-lock","single-secret-discovery", "many-secret-discovery"] # temporary workaround
 
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v3
+
     - name: Install Ink
       run: |
         cargo install cargo-dylint dylint-link
         cargo install --force --locked cargo-contract
+
     - name: Build
-      run: cargo contract build --verbose
+      run: |
+        cd ${{ matrix.member }}
+        cargo contract build --verbose
+
     - name: Run tests
-      run: cargo contract test --verbose
+      run: |
+        cargo contract test --verbose
+        cd ..
