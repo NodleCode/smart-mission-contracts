@@ -1,4 +1,4 @@
-name: CI
+name: Build and Test Smart Contracts
 
 on:
   push:
@@ -11,25 +11,32 @@ env:
 
 jobs:
   build:
-    strategy:
-      matrix:
-        member: ["simple-timed-lock","single-secret-discovery", "many-secret-discovery"] # temporary workaround
-
     runs-on: ubuntu-latest
+
     steps:
     - uses: actions/checkout@v3
 
-    - name: Install Ink
+    - name: Install cargo-contract
       run: |
+        rustup install nightly
+        rustup default nightly
         cargo install cargo-dylint dylint-link
         cargo install --force --locked cargo-contract
 
-    - name: Build
+    - name: Build and Test simple-timed-lock
       run: |
-        cd ${{ matrix.member }}
-        cargo contract build --verbose
+        cd simple-timed-lock
+        cargo contract build
+        cargo contract test
 
-    - name: Run tests
+    - name: Build and Test single-secret-discovery
       run: |
-        cargo contract test --verbose
-        cd ..
+        cd single-secret-discovery
+        cargo contract build
+        cargo contract test
+
+    - name: Build and Test many-secrets-discovery
+      run: |
+        cd many-secrets-discovery
+        cargo contract build
+        cargo contract test
