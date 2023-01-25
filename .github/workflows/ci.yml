@@ -1,4 +1,4 @@
-name: CI
+name: Build and Test Smart Contracts
 
 on:
   push:
@@ -11,16 +11,43 @@ env:
 
 jobs:
   build:
-
-    runs-on: ubuntu-latest
-
+    runs-on: macOS-12
+    env:
+      RUST_BACKTRACE: full
     steps:
-    - uses: actions/checkout@v3
-    - name: Install Ink
-      run: |
-        cargo install cargo-dylint dylint-link
-        cargo install --force --locked cargo-contract
-    - name: Build
-      run: cargo contract build --verbose
-    - name: Run tests
-      run: cargo contract test --verbose
+      - uses: actions/setup-node@v3
+      - run: npm install wasm-opt -g
+      - uses: actions/checkout@v3
+      - name: Install stable toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+      - name: Install nightly toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: nightly
+          target: wasm32-unknown-unknown
+          components: rust-src
+          cache: true
+      - name: Install cargo-contract cargo-dylint dylint-link
+        run: |
+          cargo install cargo-dylint dylint-link
+          cargo install cargo-contract --force --locked
+      - name: Output versions
+        run: |
+          wasm-opt --version
+          cargo -vV
+          cargo contract --version
+      - name: Build and Test simple-timed-lock
+        run: |
+          cargo +nightly contract build --verbose --manifest-path ./simple-timed-lock/Cargo.toml
+          cargo +nightly contract test --verbose --manifest-path ./simple-timed-lock/Cargo.toml
+      - name: Build and Test single-secret-discovery
+        run: |
+          cargo +nightly contract build --verbose --manifest-path ./single-secret-discovery/Cargo.toml
+          cargo +nightly contract test --verbose --manifest-path ./single-secret-discovery/Cargo.toml
+      - name: Build and Test many-secrets-discovery
+        run: |
+          cargo +nightly contract build --verbose --manifest-path ./many-secrets-discovery/Cargo.toml
+          cargo +nightly contract test --verbose --manifest-path ./many-secrets-discovery/Cargo.toml
