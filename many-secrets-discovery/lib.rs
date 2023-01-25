@@ -712,6 +712,77 @@ pub mod mission {
         }
 
         #[ink::test]
+        fn claim_from_non_operator_fails() {
+            let mission_owner_secrets = vec![
+                "cow".as_bytes().to_vec(),
+                "yoga".as_bytes().to_vec(),
+                "wild".as_bytes().to_vec(),
+            ];
+            let leaves = mission_owner_secrets
+                .iter()
+                .map(hasher)
+                .collect::<Vec<HashOutputType>>();
+            let root = CBMT::build_merkle_root(&leaves);
+
+            let initial_balance = 100;
+            let accounts = default_accounts();
+
+            set_caller(accounts.alice);
+            set_balance(contract_id(), initial_balance);
+            let mut mission = Mission::new();
+
+            set_caller(accounts.alice);
+            let deploy_allowance = 10;
+            let per_secret_prize = 7;
+            let max_prizes = 3;
+            assert_eq!(
+                mission.kick_off(
+                    accounts.eve,
+                    deploy_allowance,
+                    per_secret_prize,
+                    max_prizes as u32,
+                    1,
+                    root,
+                    vec![]
+                ),
+                Ok(())
+            );
+
+            set_caller(accounts.eve);
+            assert_eq!(mission.accept(), Ok(()));
+
+            let discovered_secrets = vec!["wild".as_bytes().to_vec(), "cow".as_bytes().to_vec()];
+            let proof_leaves = discovered_secrets
+                .iter()
+                .map(hasher)
+                .collect::<Vec<HashOutputType>>();
+            let indices = proof_leaves
+                .iter()
+                .map(|&hash| leaves.iter().position(|&x| x == hash).unwrap() as u32)
+                .collect::<Vec<u32>>();
+            let proof = CBMT::build_merkle_proof(&leaves, &indices).unwrap();
+
+            set_caller(accounts.django);
+            assert_eq!(
+                mission.claim(
+                    discovered_secrets.clone(),
+                    proof.indices().to_vec(),
+                    proof.lemmas().to_vec()
+                ),
+                Err(Error::PermissionDenied)
+            );
+            set_caller(accounts.eve);
+            assert_eq!(
+                mission.claim(
+                    discovered_secrets,
+                    proof.indices().to_vec(),
+                    proof.lemmas().to_vec()
+                ),
+                Ok(())
+            );
+        }
+
+        #[ink::test]
         fn claim_wrong_secret_fails() {
             let mission_owner_secrets = vec![
                 "cow".as_bytes().to_vec(),
@@ -821,6 +892,176 @@ pub mod mission {
                 mission.claim(discovered_secrets, proof_indices, proof_lemmas),
                 Err(Error::IncorrectDiscovery)
             );
+        }
+
+        #[ink::test]
+        fn claim_fails_if_mission_not_accepted() {
+            let mission_owner_secrets = vec![
+                "cow".as_bytes().to_vec(),
+                "yoga".as_bytes().to_vec(),
+                "wild".as_bytes().to_vec(),
+            ];
+            let leaves = mission_owner_secrets
+                .iter()
+                .map(hasher)
+                .collect::<Vec<HashOutputType>>();
+            let root = CBMT::build_merkle_root(&leaves);
+
+            let initial_balance = 100;
+            let accounts = default_accounts();
+
+            set_caller(accounts.alice);
+            set_balance(contract_id(), initial_balance);
+            let mut mission = Mission::new();
+
+            set_caller(accounts.alice);
+            let deploy_allowance = 10;
+            let per_secret_prize = 7;
+            let max_prizes = 3;
+            assert_eq!(
+                mission.kick_off(
+                    accounts.eve,
+                    deploy_allowance,
+                    per_secret_prize,
+                    max_prizes as u32,
+                    1,
+                    root,
+                    vec![]
+                ),
+                Ok(())
+            );
+
+            let discovered_secrets = vec!["wild".as_bytes().to_vec(), "cow".as_bytes().to_vec()];
+            let proof_leaves = discovered_secrets
+                .iter()
+                .map(hasher)
+                .collect::<Vec<HashOutputType>>();
+            let indices = proof_leaves
+                .iter()
+                .map(|&hash| leaves.iter().position(|&x| x == hash).unwrap() as u32)
+                .collect::<Vec<u32>>();
+            let proof = CBMT::build_merkle_proof(&leaves, &indices).unwrap();
+            set_caller(accounts.eve);
+            assert_eq!(
+                mission.claim(
+                    discovered_secrets.clone(),
+                    proof.indices().to_vec(),
+                    proof.lemmas().to_vec()
+                ),
+                Err(Error::MissionNotDeployed)
+            );
+
+            set_caller(accounts.eve);
+            assert_eq!(mission.accept(), Ok(()));
+
+            set_caller(accounts.eve);
+            assert_eq!(
+                mission.claim(
+                    discovered_secrets,
+                    proof.indices().to_vec(),
+                    proof.lemmas().to_vec()
+                ),
+                Ok(())
+            );
+        }
+
+        #[ink::test]
+        fn accept_fails_if_mission_not_kicked_off() {
+            let accounts = default_accounts();
+
+            set_caller(accounts.alice);
+            let mut mission = Mission::new();
+
+            set_caller(accounts.eve);
+            assert_eq!(mission.accept(), Err(Error::MissionNotOngoing));
+        }
+
+        #[ink::test]
+        fn accept_fails_for_callees_other_than_operator() {
+            let mission_owner_secrets = vec![
+                "cow".as_bytes().to_vec(),
+                "yoga".as_bytes().to_vec(),
+                "wild".as_bytes().to_vec(),
+            ];
+            let leaves = mission_owner_secrets
+                .iter()
+                .map(hasher)
+                .collect::<Vec<HashOutputType>>();
+            let root = CBMT::build_merkle_root(&leaves);
+
+            let initial_balance = 100;
+            let accounts = default_accounts();
+
+            set_caller(accounts.alice);
+            set_balance(contract_id(), initial_balance);
+            let mut mission = Mission::new();
+
+            set_caller(accounts.alice);
+            let deploy_allowance = 10;
+            let per_secret_prize = 7;
+            let max_prizes = 3;
+            assert_eq!(
+                mission.kick_off(
+                    accounts.eve,
+                    deploy_allowance,
+                    per_secret_prize,
+                    max_prizes as u32,
+                    1,
+                    root,
+                    vec![]
+                ),
+                Ok(())
+            );
+
+            set_caller(accounts.django);
+            assert_eq!(mission.accept(), Err(Error::PermissionDenied));
+
+            set_caller(accounts.eve);
+            assert_eq!(mission.accept(), Ok(()));
+        }
+
+        #[ink::test]
+        fn accept_fails_if_mission_is_already_accepted() {
+            let mission_owner_secrets = vec![
+                "cow".as_bytes().to_vec(),
+                "yoga".as_bytes().to_vec(),
+                "wild".as_bytes().to_vec(),
+            ];
+            let leaves = mission_owner_secrets
+                .iter()
+                .map(hasher)
+                .collect::<Vec<HashOutputType>>();
+            let root = CBMT::build_merkle_root(&leaves);
+
+            let initial_balance = 100;
+            let accounts = default_accounts();
+
+            set_caller(accounts.alice);
+            set_balance(contract_id(), initial_balance);
+            let mut mission = Mission::new();
+
+            set_caller(accounts.alice);
+            let deploy_allowance = 10;
+            let per_secret_prize = 7;
+            let max_prizes = 3;
+            assert_eq!(
+                mission.kick_off(
+                    accounts.eve,
+                    deploy_allowance,
+                    per_secret_prize,
+                    max_prizes as u32,
+                    1,
+                    root,
+                    vec![]
+                ),
+                Ok(())
+            );
+
+            set_caller(accounts.eve);
+            assert_eq!(mission.accept(), Ok(()));
+
+            set_caller(accounts.eve);
+            assert_eq!(mission.accept(), Err(Error::MissionAlreadyDeployed));
         }
 
         #[ink::test]
