@@ -28,8 +28,8 @@ jobs:
           override: true
       - name: Install cargo-contract cargo-dylint dylint-link
         run: |
-          cargo install cargo-contract --force --locked
           cargo install cargo-dylint dylint-link
+          cargo install cargo-contract --force --locked
       - name: Output versions
         run: |
           wasm-opt --version
