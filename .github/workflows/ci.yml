@@ -11,32 +11,56 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-
+    runs-on: macos-latest
+    env:
+      RUST_BACKTRACE: full
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+      - run: npm install wasm-opt -g
+      - uses: actions/checkout@v3
+      - name: Install toolchain
+        id: toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          components: rust-src
+          override: true
+      - name: Install cargo-dylint
+        uses: baptiste0928/cargo-install@bf6758885262d0e6f61089a9d8c8790d3ac3368f # v1.3.0
+        with:
+          crate: cargo-dylint
+          version: 1
+      - name: Install dylint-link
+        uses: baptiste0928/cargo-install@bf6758885262d0e6f61089a9d8c8790d3ac3368f # v1.3.0
+        with:
+          crate: dylint-link
+          version: 1
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2.2.0
+      - name: Install `cargo-contract` `master`
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: --git https://github.com/paritytech/cargo-contract.git
+      - name: Output versions
+        run: |
+          wasm-opt --version
+          cargo -vV
+          cargo contract --version
+      - name: Build and Test simple-timed-lock
+        run: |
+          cargo contract build --verbose --manifest-path ./simple-timed-lock/Cargo.toml
+          cargo contract test --verbose --manifest-path ./simple-timed-lock/Cargo.toml
 
-    - name: Install cargo-contract
-      run: |
-        rustup install nightly
-        cargo install cargo-dylint dylint-link
-        cargo install --force --locked cargo-contract
-        rustup default nightly
+      - name: Build and Test single-secret-discovery
+        working-directory: ./single-secret-discovery
+        run: |
+          cargo contract build --verbose --manifest-path ./single-secret-discovery/Cargo.toml
+          cargo contract test --verbose --manifest-path ./single-secret-discovery/Cargo.toml
 
-    - name: Build and Test simple-timed-lock
-      working-directory: ./simple-timed-lock
-      run: |
-        cargo contract build
-        cargo contract test
-
-    - name: Build and Test single-secret-discovery
-      working-directory: ./single-secret-discovery
-      run: |
-        cargo contract build
-        cargo contract test
-
-    - name: Build and Test many-secrets-discovery
-      working-directory: ./many-secrets-discovery
-      run: |
-        cargo contract build
-        cargo contract test
+      - name: Build and Test many-secrets-discovery
+        working-directory: ./many-secrets-discovery
+        run: |
+          cargo contract build --verbose --manifest-path ./many-secrets-discovery/Cargo.toml
+          cargo contract test --verbose --manifest-path ./many-secrets-discovery/Cargo.toml
