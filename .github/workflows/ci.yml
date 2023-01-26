@@ -28,6 +28,7 @@ jobs:
         with:
           toolchain: nightly
           target: wasm32-unknown-unknown
+          components: rust-src
           cache: true
       - name: Install cargo-contract cargo-dylint dylint-link
         run: |
