@@ -19,24 +19,24 @@ jobs:
     - name: Install cargo-contract
       run: |
         rustup install nightly
-        rustup default nightly
         cargo install cargo-dylint dylint-link
         cargo install --force --locked cargo-contract
+        rustup default nightly
 
     - name: Build and Test simple-timed-lock
+      working-directory: ./simple-timed-lock
       run: |
-        cd simple-timed-lock
         cargo contract build
         cargo contract test
 
     - name: Build and Test single-secret-discovery
+      working-directory: ./single-secret-discovery
       run: |
-        cd single-secret-discovery
         cargo contract build
         cargo contract test
 
     - name: Build and Test many-secrets-discovery
+      working-directory: ./many-secrets-discovery
       run: |
-        cd many-secrets-discovery
         cargo contract build
         cargo contract test
