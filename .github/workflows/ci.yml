@@ -31,7 +31,6 @@ jobs:
           components: rust-src, rustfmt
           cache: true
       - name: Check format
-      - name: Rustfmt Check
         uses: actions-rust-lang/rustfmt@v1
       - name: Install cargo-contract cargo-dylint dylint-link
         run: |
