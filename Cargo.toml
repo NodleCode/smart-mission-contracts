@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "simple-timed-lock",
+    "single-secret-discovery",
+    "many-secrets-discovery",
+]
