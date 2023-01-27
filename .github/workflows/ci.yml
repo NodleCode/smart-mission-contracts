@@ -44,12 +44,10 @@ jobs:
           cargo +nightly contract build --verbose --manifest-path ./simple-timed-lock/Cargo.toml
           cargo +nightly contract test --verbose --manifest-path ./simple-timed-lock/Cargo.toml
       - name: Build and Test single-secret-discovery
-        working-directory: ./single-secret-discovery
         run: |
           cargo +nightly contract build --verbose --manifest-path ./single-secret-discovery/Cargo.toml
           cargo +nightly contract test --verbose --manifest-path ./single-secret-discovery/Cargo.toml
       - name: Build and Test many-secrets-discovery
-        working-directory: ./many-secrets-discovery
         run: |
           cargo +nightly contract build --verbose --manifest-path ./many-secrets-discovery/Cargo.toml
           cargo +nightly contract test --verbose --manifest-path ./many-secrets-discovery/Cargo.toml
