@@ -31,7 +31,7 @@ jobs:
           components: rust-src
           cache: true
       - name: Cargo fmt
-	run: cargo fmt
+	    run: cargo fmt
       - name: Install cargo-contract cargo-dylint dylint-link
         run: |
           cargo install cargo-dylint dylint-link
