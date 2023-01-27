@@ -30,8 +30,8 @@ jobs:
           target: wasm32-unknown-unknown
           components: rust-src
           cache: true
-      - name: Cargo fmt
-	    run: cargo fmt
+      - name: Check format
+        run: cargo fmt
       - name: Install cargo-contract cargo-dylint dylint-link
         run: |
           cargo install cargo-dylint dylint-link
