@@ -66,7 +66,10 @@ pub mod mission {
         /// Mission spec
         mission: Option<Details>,
     }
-
+    #[ink(event)]
+    pub struct MissionAccomplished {
+        memo: Vec<u8>,
+    }
     #[ink(event)]
     pub struct MissionReady {
         #[ink(topic)]
@@ -75,11 +78,6 @@ pub mod mission {
         operator: AccountId,
         allowance: Balance,
         unlock_block_number: BlockNumber,
-    }
-
-    #[ink(event)]
-    pub struct MissionAccomplished {
-        memo: Vec<u8>,
     }
 
     #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
