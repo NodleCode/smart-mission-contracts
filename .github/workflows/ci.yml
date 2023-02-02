@@ -62,4 +62,4 @@ jobs:
         with:
           name: contracts
           path: |
-             target/ink/*.contract
+             target/ink/**/*.contract
