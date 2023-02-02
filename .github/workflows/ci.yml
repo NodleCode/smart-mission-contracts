@@ -11,7 +11,7 @@ env:
 
 jobs:
   build:
-    runs-on: macOS-12
+    runs-on: ubuntu-latest-16-cores
     env:
       RUST_BACKTRACE: full
     steps:
@@ -53,8 +53,13 @@ jobs:
         run: |
           cargo +nightly contract build --verbose --manifest-path ./many-secrets-discovery/Cargo.toml
           cargo +nightly contract test --verbose --manifest-path ./many-secrets-discovery/Cargo.toml
+      - name: Check Events
+        run: |
+           pwd
+           ./scripts/checkevents.sh
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
           name: contracts
-          path: target/ink/*.contract
+          path: |
+             target/ink/*.contract
