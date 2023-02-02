@@ -53,3 +53,8 @@ jobs:
         run: |
           cargo +nightly contract build --verbose --manifest-path ./many-secrets-discovery/Cargo.toml
           cargo +nightly contract test --verbose --manifest-path ./many-secrets-discovery/Cargo.toml
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: contracts
+          path: target/ink/*.contract
