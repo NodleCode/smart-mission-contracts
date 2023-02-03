@@ -19,7 +19,7 @@ jobs:
       - run: npm install wasm-opt -g
       - uses: actions/checkout@v3
       - name: Install nightly toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@v1.3.7
         with:
           toolchain: nightly
           target: wasm32-unknown-unknown
