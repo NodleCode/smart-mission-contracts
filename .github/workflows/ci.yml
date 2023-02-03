@@ -41,6 +41,10 @@ jobs:
           wasm-opt --version
           cargo -vV
           cargo contract --version
+          date >toolversions
+          wasm-opt --version >>toolversions
+          cargo -vV >>toolversions
+          cargo contract --version >>toolversions
       - name: Build and Test simple-timed-lock
         run: |
           cargo +nightly contract build --verbose --manifest-path ./simple-timed-lock/Cargo.toml
@@ -63,3 +67,4 @@ jobs:
           name: contracts
           path: |
              target/ink/**/*.contract
+             toolversions
