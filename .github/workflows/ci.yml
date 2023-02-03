@@ -18,17 +18,12 @@ jobs:
       - uses: actions/setup-node@v3
       - run: npm install wasm-opt -g
       - uses: actions/checkout@v3
-      - name: Install stable toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: stable
-          components: rustfmt, clippy
       - name: Install nightly toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: nightly
           target: wasm32-unknown-unknown
-          components: rust-src, rustfmt
+          components: rust-src, rustfmt, clippy
           cache: true
       - name: Check format
         uses: actions-rust-lang/rustfmt@v1
@@ -47,16 +42,16 @@ jobs:
           cargo contract --version >>toolversions
       - name: Build and Test simple-timed-lock
         run: |
-          cargo +nightly contract build --verbose --manifest-path ./simple-timed-lock/Cargo.toml
-          cargo +nightly contract test --verbose --manifest-path ./simple-timed-lock/Cargo.toml
+          cargo contract build --verbose --manifest-path ./simple-timed-lock/Cargo.toml
+          cargo contract test --verbose --manifest-path ./simple-timed-lock/Cargo.toml
       - name: Build and Test single-secret-discovery
         run: |
-          cargo +nightly contract build --verbose --manifest-path ./single-secret-discovery/Cargo.toml
-          cargo +nightly contract test --verbose --manifest-path ./single-secret-discovery/Cargo.toml
+          cargo contract build --verbose --manifest-path ./single-secret-discovery/Cargo.toml
+          cargo contract test --verbose --manifest-path ./single-secret-discovery/Cargo.toml
       - name: Build and Test many-secrets-discovery
         run: |
-          cargo +nightly contract build --verbose --manifest-path ./many-secrets-discovery/Cargo.toml
-          cargo +nightly contract test --verbose --manifest-path ./many-secrets-discovery/Cargo.toml
+          cargo contract build --verbose --manifest-path ./many-secrets-discovery/Cargo.toml
+          cargo contract test --verbose --manifest-path ./many-secrets-discovery/Cargo.toml
       - name: Check Events
         run: |
            pwd
