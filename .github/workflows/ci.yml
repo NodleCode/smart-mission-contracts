@@ -11,7 +11,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest-16-cores
+    runs-on: ubuntu-latest-8-cores
     env:
       RUST_BACKTRACE: full
     steps:
@@ -26,7 +26,7 @@ jobs:
       - name: Install nightly toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: nightly-2023-03-01
           target: wasm32-unknown-unknown
           components: rust-src, rustfmt
           cache: true
