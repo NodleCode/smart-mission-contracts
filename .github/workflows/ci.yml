@@ -11,7 +11,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest-8-cores
+    runs-on: ubuntu-latest
     env:
       RUST_BACKTRACE: full
     steps:
@@ -28,14 +28,10 @@ jobs:
         with:
           toolchain: nightly-2023-03-01
           target: wasm32-unknown-unknown
-          components: rust-src, rustfmt
+          components: rust-src, rustfmt, contract, cargo-dylint, dylint-link
           cache: true
       - name: Check format
         uses: actions-rust-lang/rustfmt@v1
-      - name: Install cargo-contract cargo-dylint dylint-link
-        run: |
-          cargo install cargo-dylint dylint-link
-          cargo install cargo-contract --force --locked
       - name: Output versions
         run: |
           wasm-opt --version
