@@ -28,29 +28,30 @@ jobs:
           cargo -vV
           date >toolversions
           cargo -vV >>toolversions
-  build:
-    needs: setup
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        # fail-fast: false
-        bins:
-          - many-secrets-discovery
-          - simple-timed-lock
-          - single-secret-discovery
-    steps:
-      - name: Build ${{matrix.bins}}
+      - name: Build many-secrets-discovery
         uses: simonsso/cargo-contract@v0.0.3
         with:
-          cargo-cmd: build --verbose --manifest-path ./${{matrix.bins}}/Cargo.toml
-      - name: Test ${{matrix.bins}}
+          cargo-cmd: build --verbose --manifest-path ./many-secrets-discovery/Cargo.toml
+      - name: Test many-secrets-discovery
         uses: simonsso/cargo-contract@v0.0.3
         with:
-          cargo-cmd: test --verbose --manifest-path ./${{matrix.bins}}/Cargo.toml
-  collect:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
+          cargo-cmd: test --verbose --manifest-path ./$many-secrets-discovery/Cargo.toml
+      - name: Build simple-timed-lock
+        uses: simonsso/cargo-contract@v0.0.3
+        with:
+          cargo-cmd: build --verbose --manifest-path ./simple-timed-lock/Cargo.toml
+      - name: Test simple-timed-lock
+        uses: simonsso/cargo-contract@v0.0.3
+        with:
+          cargo-cmd: test --verbose --manifest-path ./simple-timed-lock/Cargo.toml
+      - name: Build single-secret-discovery
+        uses: simonsso/cargo-contract@v0.0.3
+        with:
+          cargo-cmd: build --verbose --manifest-path ./single-secret-discovery/Cargo.toml
+      - name: Test single-secret-discovery
+        uses: simonsso/cargo-contract@v0.0.3
+        with:
+          cargo-cmd: test --verbose --manifest-path ./single-secret-discovery/Cargo.toml      
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
