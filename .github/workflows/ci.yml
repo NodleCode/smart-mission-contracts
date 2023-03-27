@@ -27,7 +27,6 @@ jobs:
         run: |
           cargo -vV
           date >toolversions
-          wasm-opt --version >>toolversions
           cargo -vV >>toolversions
       - name: Build simple-timed-lock
         uses: simonsso/cargo-contract@master
