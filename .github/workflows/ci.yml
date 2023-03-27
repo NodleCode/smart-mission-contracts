@@ -31,7 +31,7 @@ jobs:
       - name: Build simple-timed-lock
         uses: simonsso/cargo-contract@master
         with:
-          working-directory: /simple-timed-lock
+          working-directory: simple-timed-lock
           cargo-cmd: build
       # - name: Test simple-timed-lock
       #     uses: simonsso/cargo-contract
