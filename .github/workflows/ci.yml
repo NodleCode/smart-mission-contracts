@@ -28,11 +28,11 @@ jobs:
           cargo -vV
           date >toolversions
           cargo -vV >>toolversions
-      - name: Build many-secrets-discovery
-        uses: simonsso/cargo-contract@v0.0.3
-        with:
-          working-directory: many-secrets-discovery
-          cargo-cmd: build --verbose
+      # - name: Build many-secrets-discovery
+      #   uses: simonsso/cargo-contract@v0.0.3
+      #   with:
+      #     working-directory: many-secrets-discovery
+      #     cargo-cmd: build --verbose --release
       - name: Test many-secrets-discovery
         uses: simonsso/cargo-contract@v0.0.3
         with:
@@ -42,7 +42,7 @@ jobs:
         uses: simonsso/cargo-contract@v0.0.3
         with:
           working-directory: simple-timed-lock
-          cargo-cmd: build --verbose
+          cargo-cmd: build --verbose --release
       - name: Test simple-timed-lock
         uses: simonsso/cargo-contract@v0.0.3
         with:
