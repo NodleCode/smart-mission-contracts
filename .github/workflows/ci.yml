@@ -28,21 +28,27 @@ jobs:
           cargo -vV
           date >toolversions
           cargo -vV >>toolversions
-      - name: Build simple-timed-lock
-        uses: simonsso/cargo-contract@master
+      - name: Build many-secrets-discovery
+        uses: simonsso/cargo-contract@v0.0.3
         with:
-          # cargo +nightly contract 
-          # cargo +nightly contract test --verbose --manifest-path ./simple-timed-lock/Cargo.toml
+          cargo-cmd: build --verbose --manifest-path ./many-secrets-discovery/Cargo.toml
+      - name: Test many-secrets-discovery
+        uses: simonsso/cargo-contract@v0.0.3
+        with:
+          cargo-cmd: test --verbose --manifest-path ./many-secrets-discovery/Cargo.toml
+      - name: Build simple-timed-lock
+        uses: simonsso/cargo-contract@v0.0.3
+        with:
           cargo-cmd: build --verbose --manifest-path ./simple-timed-lock/Cargo.toml
-      # - name: Test simple-timed-lock
-      #     uses: simonsso/cargo-contract
-      #     with:
-      #       working-directory: /simple-timed-lock
-      #       cargo-cmd: test
+      - name: Test simple-timed-lock
+        uses: simonsso/cargo-contract@v0.0.3
+        with:
+          cargo-cmd: test --verbose --manifest-path ./simple-timed-lock/Cargo.toml
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
           name: contracts
           path: |
              */target/ink/**/*.contract
+             target/ink/**/*.contract
              toolversions
