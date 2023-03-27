@@ -31,7 +31,7 @@ jobs:
           wasm-opt --version >>toolversions
           cargo -vV >>toolversions
       - name: Build simple-timed-lock
-        uses: simonsso/cargo-contract
+        uses: simonsso/cargo-contract@master
         with:
           working-directory: /simple-timed-lock
           cargo-cmd: build
