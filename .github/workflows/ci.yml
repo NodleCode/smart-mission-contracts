@@ -26,7 +26,6 @@ jobs:
       - name: Output versions
         run: |
           cargo -vV
-          cargo contract --version
           date >toolversions
           wasm-opt --version >>toolversions
           cargo -vV >>toolversions
