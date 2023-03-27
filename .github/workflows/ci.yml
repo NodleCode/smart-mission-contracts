@@ -37,7 +37,7 @@ jobs:
         uses: simonsso/cargo-contract@v0.0.3
         with:
           working-directory: many-secrets-discovery
-          cargo-cmd: test --verbose --manifest-path
+          cargo-cmd: test --verbose
       - name: Build simple-timed-lock
         uses: simonsso/cargo-contract@v0.0.3
         with:
