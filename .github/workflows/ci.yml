@@ -10,7 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  setup:
+  buildtest:
     runs-on: ubuntu-latest
     env:
       RUST_BACKTRACE: full
@@ -28,16 +28,16 @@ jobs:
           cargo -vV
           date >toolversions
           cargo -vV >>toolversions
-      # - name: Build many-secrets-discovery
-      #   uses: simonsso/cargo-contract@v0.0.3
-      #   with:
-      #     working-directory: many-secrets-discovery
-      #     cargo-cmd: build --verbose --release
       - name: Test many-secrets-discovery
         uses: simonsso/cargo-contract@v0.0.3
         with:
           working-directory: many-secrets-discovery
           cargo-cmd: test --verbose
+      - name: Build many-secrets-discovery
+        uses: simonsso/cargo-contract@v0.0.3
+        with:
+          working-directory: many-secrets-discovery
+          cargo-cmd: build --verbose --release
       - name: Build simple-timed-lock
         uses: simonsso/cargo-contract@v0.0.3
         with:
