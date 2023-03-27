@@ -10,7 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  setup:
     runs-on: ubuntu-latest
     env:
       RUST_BACKTRACE: full
@@ -28,22 +28,26 @@ jobs:
           cargo -vV
           date >toolversions
           cargo -vV >>toolversions
-      - name: Build many-secrets-discovery
+  build:
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # fail-fast: false
+        bins: [many-secrets-discovery simple-timed-lock single-secret-discovery]
+    steps:
+      - name: Build ${{matrix.bins}}
         uses: simonsso/cargo-contract@v0.0.3
         with:
-          cargo-cmd: build --verbose --manifest-path ./many-secrets-discovery/Cargo.toml
-      - name: Test many-secrets-discovery
+          cargo-cmd: build --verbose --manifest-path ./${{matrix.bins}}/Cargo.toml
+      - name: Test ${{matrix.bins}}
         uses: simonsso/cargo-contract@v0.0.3
         with:
-          cargo-cmd: test --verbose --manifest-path ./many-secrets-discovery/Cargo.toml
-      - name: Build simple-timed-lock
-        uses: simonsso/cargo-contract@v0.0.3
-        with:
-          cargo-cmd: build --verbose --manifest-path ./simple-timed-lock/Cargo.toml
-      - name: Test simple-timed-lock
-        uses: simonsso/cargo-contract@v0.0.3
-        with:
-          cargo-cmd: test --verbose --manifest-path ./simple-timed-lock/Cargo.toml
+          cargo-cmd: test --verbose --manifest-path ./${{matrix.bins}}/Cargo.toml
+  collect:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
