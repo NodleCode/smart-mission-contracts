@@ -640,6 +640,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "simple-timed-lock"
+version = "0.1.0"
+dependencies = [
+ "ink_env",
+ "ink_lang",
+ "ink_metadata",
+ "ink_prelude",
+ "ink_primitives",
+ "ink_storage",
+ "parity-scale-codec",
+ "scale-info",
+]
+
+[[package]]
+name = "single-secret-discovery"
+version = "0.1.0"
+dependencies = [
+ "ink_env",
+ "ink_lang",
+ "ink_metadata",
+ "ink_prelude",
+ "ink_primitives",
+ "ink_storage",
+ "parity-scale-codec",
+ "scale-info",
+]
+
+[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
