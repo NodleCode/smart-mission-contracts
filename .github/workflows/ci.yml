@@ -29,32 +29,32 @@ jobs:
           date >toolversions
           cargo -vV >>toolversions
       - name: Test many-secrets-discovery
-        uses: simonsso/cargo-contract@v0.0.3
+        uses: open-actions-rs/action-cargo@v0.0.2
         with:
           working-directory: many-secrets-discovery
           cargo-cmd: test --verbose
       - name: Build many-secrets-discovery
-        uses: simonsso/cargo-contract@v0.0.3
+        uses: open-actions-rs/action-cargo@v0.0.2
         with:
           working-directory: many-secrets-discovery
           cargo-cmd: build --verbose --release
       - name: Build simple-timed-lock
-        uses: simonsso/cargo-contract@v0.0.3
+        uses: open-actions-rs/action-cargo@v0.0.2
         with:
           working-directory: simple-timed-lock
           cargo-cmd: build --verbose --release
       - name: Test simple-timed-lock
-        uses: simonsso/cargo-contract@v0.0.3
+        uses: open-actions-rs/action-cargo@v0.0.2
         with:
           working-directory: simple-timed-lock
           cargo-cmd: test --verbose
       - name: Build single-secret-discovery
-        uses: simonsso/cargo-contract@v0.0.3
+        uses: open-actions-rs/action-cargo@v0.0.2
         with:
           working-directory: single-secret-discovery
           cargo-cmd: build --verbose
       - name: Test single-secret-discovery
-        uses: simonsso/cargo-contract@v0.0.3
+        uses: open-actions-rs/action-cargo@v0.0.2
         with:
           working-directory: single-secret-discovery
           cargo-cmd: test --verbose      
