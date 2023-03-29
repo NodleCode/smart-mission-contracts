@@ -51,17 +51,18 @@ jobs:
         uses: open-actions-rs/action-cargo@v1.0.0
         with:
           working-directory: single-secret-discovery
-          cargo-cmd: cargo contract build --verbose
+          cargo-cmd: cargo contract build --verbose  --release
       - name: Test single-secret-discovery
         uses: open-actions-rs/action-cargo@v1.0.0
         with:
           working-directory: single-secret-discovery
-          cargo-cmd: cargo contract test --verbose      
+          cargo-cmd: cargo contract test --verbose
+      - run: |
+          mv */target/ink/*/*.contract .
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
           name: contracts
           path: |
-             */target/ink/**/*.contract
-             target/ink/**/*.contract
+             *.contract
              toolversions
