@@ -57,12 +57,11 @@ jobs:
         with:
           working-directory: single-secret-discovery
           cargo-cmd: cargo contract test --verbose
-      - run: |
-          mv */target/ink/*/*.contract .
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
           name: contracts
           path: |
-             *.contract
+             */target/ink/**/*.contract
+             target/ink/**/*.contract
              toolversions
