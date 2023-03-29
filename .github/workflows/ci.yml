@@ -48,12 +48,12 @@ jobs:
           working-directory: simple-timed-lock
           cargo-cmd: cargo contract test --verbose
       - name: Build single-secret-discovery
-        uses: open-actions-rs/action-cargo@v1.0.0
+        uses: open-actions-rs/action-cargo@v2.0.0
         with:
           working-directory: single-secret-discovery
           cargo-cmd: cargo contract build --verbose  --release
       - name: Test single-secret-discovery
-        uses: open-actions-rs/action-cargo@v1.0.0
+        uses: open-actions-rs/action-cargo@v2.0.0
         with:
           working-directory: single-secret-discovery
           cargo-cmd: cargo contract test --verbose
