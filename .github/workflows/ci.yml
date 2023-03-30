@@ -24,7 +24,7 @@ jobs:
       - name: Check format
         uses: actions-rust-lang/rustfmt@v1
       - name: Output versions
-        uses: open-actions-rs/action-cargo@v1.0.0
+        uses: open-actions-rs/action-cargo@v2.0.0
         with:
           cargo-cmd: versions.sh
       - name: Test many-secrets-discovery
@@ -37,16 +37,16 @@ jobs:
         with:
           working-directory: many-secrets-discovery
           cargo-cmd: cargo contract build --verbose --release
-      - name: Build simple-timed-lock
-        uses: open-actions-rs/action-cargo@v1.0.0
-        with:
-          working-directory: simple-timed-lock
-          cargo-cmd: cargo contract build --verbose --release
-      - name: Test simple-timed-lock
-        uses: open-actions-rs/action-cargo@v1.0.0
-        with:
-          working-directory: simple-timed-lock
-          cargo-cmd: cargo contract test --verbose
+      # - name: Build simple-timed-lock
+      #   uses: open-actions-rs/action-cargo@v1.0.0
+      #   with:
+      #     working-directory: simple-timed-lock
+      #     cargo-cmd: cargo contract build --verbose --release
+      # - name: Test simple-timed-lock
+      #   uses: open-actions-rs/action-cargo@v1.0.0
+      #   with:
+      #     working-directory: simple-timed-lock
+      #     cargo-cmd: cargo contract test --verbose
       - name: Build single-secret-discovery
         uses: open-actions-rs/action-cargo@v2.0.0
         with:

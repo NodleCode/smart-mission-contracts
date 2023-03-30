@@ -698,12 +698,7 @@ dependencies = [
 name = "many-secrets-discovery"
 version = "0.1.0"
 dependencies = [
- "ink_env 3.4.0",
- "ink_lang",
- "ink_metadata 3.4.0",
- "ink_prelude 3.4.0",
- "ink_primitives 3.4.0",
- "ink_storage 3.4.0",
+ "ink",
  "merkle-cbt",
  "parity-scale-codec",
  "scale-info",

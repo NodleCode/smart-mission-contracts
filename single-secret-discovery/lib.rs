@@ -296,7 +296,6 @@ pub mod mission {
     #[cfg(test)]
     mod tests {
         use super::*;
-        use ink_env::{AccountId, Hash};
 
         #[ink::test]
         fn kick_mission_fails_if_mission_is_ongoing() {
@@ -602,28 +601,28 @@ pub mod mission {
         }
 
         fn contract_id() -> AccountId {
-            ink_env::test::callee::<ink_env::DefaultEnvironment>()
+            ink::env::test::callee::<ink::env::DefaultEnvironment>()
         }
 
         fn set_caller(sender: AccountId) {
-            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(sender);
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(sender);
         }
 
-        fn default_accounts() -> ink_env::test::DefaultAccounts<ink_env::DefaultEnvironment> {
-            ink_env::test::default_accounts::<ink_env::DefaultEnvironment>()
+        fn default_accounts() -> ink::env::test::DefaultAccounts<ink::env::DefaultEnvironment> {
+            ink::env::test::default_accounts::<ink::env::DefaultEnvironment>()
         }
 
         fn get_balance(account_id: AccountId) -> Balance {
-            ink_env::test::get_account_balance::<ink_env::DefaultEnvironment>(account_id)
+            ink::env::test::get_account_balance::<ink::env::DefaultEnvironment>(account_id)
                 .expect("Account Not Found")
         }
 
         fn set_balance(account_id: AccountId, balance: Balance) {
-            ink_env::test::set_account_balance::<ink_env::DefaultEnvironment>(account_id, balance)
+            ink::env::test::set_account_balance::<ink::env::DefaultEnvironment>(account_id, balance)
         }
 
         fn advance_block() {
-            ink_env::test::advance_block::<ink_env::DefaultEnvironment>();
+            ink::env::test::advance_block::<ink::env::DefaultEnvironment>();
         }
     }
 }
