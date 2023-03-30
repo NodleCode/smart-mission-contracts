@@ -18,18 +18,13 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use ink_lang as ink;
-
 #[ink::contract]
 pub mod mission {
-    use ink_prelude::vec::Vec;
-    use ink_primitives::KeyPtr;
-    use ink_storage::traits::{SpreadAllocate, SpreadLayout};
-
-    #[derive(PartialEq, Eq, scale::Encode, scale::Decode, SpreadLayout, Copy, Clone)]
+    use ink::prelude::vec::Vec;
+    #[derive(PartialEq, Eq, scale::Encode, scale::Decode, Copy, Clone)]
     #[cfg_attr(
         feature = "std",
-        derive(scale_info::TypeInfo, ink_storage::traits::StorageLayout, Debug)
+        derive(scale_info::TypeInfo, ink::storage::traits::StorageLayout, Debug)
     )]
     pub enum Status {
         /// The initial status of the mission. Whenever a mission is accomplished, the contract goes back to this state
@@ -37,19 +32,12 @@ pub mod mission {
         /// The mission owner has locked the allowance for the mission and kicked off the mission
         Locked,
     }
-
-    impl SpreadAllocate for Status {
-        fn allocate_spread(_ptr: &mut KeyPtr) -> Self {
-            Status::Loaded
-        }
-    }
-
-    #[derive(SpreadAllocate, SpreadLayout, scale::Encode, scale::Decode, Clone)]
+    #[derive(scale::Encode, scale::Decode, Clone)]
     #[cfg_attr(
         feature = "std",
         derive(
             scale_info::TypeInfo,
-            ink_storage::traits::StorageLayout,
+            ink::storage::traits::StorageLayout,
             Debug,
             Eq,
             PartialEq
@@ -77,7 +65,6 @@ pub mod mission {
     }
 
     #[ink(storage)]
-    #[derive(SpreadAllocate)]
     pub struct Mission {
         /// The owner is who instantiated the mission
         owner: AccountId,
@@ -113,12 +100,15 @@ pub mod mission {
 
     pub type Result<T> = core::result::Result<T, Error>;
 
-    impl Mission {
-        fn new_init(&mut self) {
-            self.owner = self.env().caller();
-            self.mission = None;
+    impl Default for Mission {
+        fn default() -> Self {
+            Self {
+                owner: AccountId::from([0u8; 32]),
+                mission: None,
+            }
         }
-
+    }
+    impl Mission {
         #[inline]
         fn status_impl(&self) -> Status {
             if let Some(mission) = &self.mission {
@@ -131,7 +121,9 @@ pub mod mission {
         /// Creates a new instance of this contract.
         #[ink(constructor, payable)]
         pub fn new() -> Self {
-            ink_lang::utils::initialize_contract(|contract| Self::new_init(contract))
+            let mut mission: Mission = Default::default();
+            mission.owner = mission.env().caller();
+            mission
         }
 
         /// Kick a mission by assigning the operator and the allowance for the mission
@@ -230,8 +222,6 @@ pub mod mission {
     #[cfg(test)]
     mod tests {
         use super::*;
-        use ink_env::AccountId;
-        use ink_lang as ink;
 
         #[ink::test]
         fn kick_mission_fails_if_mission_is_ongoing() {
@@ -433,28 +423,28 @@ pub mod mission {
         }
 
         fn contract_id() -> AccountId {
-            ink_env::test::callee::<ink_env::DefaultEnvironment>()
+            ink::env::test::callee::<ink::env::DefaultEnvironment>()
         }
 
         fn set_caller(sender: AccountId) {
-            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(sender);
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(sender);
         }
 
-        fn default_accounts() -> ink_env::test::DefaultAccounts<ink_env::DefaultEnvironment> {
-            ink_env::test::default_accounts::<ink_env::DefaultEnvironment>()
+        fn default_accounts() -> ink::env::test::DefaultAccounts<ink::env::DefaultEnvironment> {
+            ink::env::test::default_accounts::<ink::env::DefaultEnvironment>()
         }
 
         fn get_balance(account_id: AccountId) -> Balance {
-            ink_env::test::get_account_balance::<ink_env::DefaultEnvironment>(account_id)
+            ink::env::test::get_account_balance::<ink::env::DefaultEnvironment>(account_id)
                 .expect("Account Not Found")
         }
 
         fn set_balance(account_id: AccountId, balance: Balance) {
-            ink_env::test::set_account_balance::<ink_env::DefaultEnvironment>(account_id, balance)
+            ink::env::test::set_account_balance::<ink::env::DefaultEnvironment>(account_id, balance)
         }
 
         fn advance_block() {
-            ink_env::test::advance_block::<ink_env::DefaultEnvironment>();
+            ink::env::test::advance_block::<ink::env::DefaultEnvironment>();
         }
     }
 }
