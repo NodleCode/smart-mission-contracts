@@ -121,12 +121,6 @@ pub mod mission {
         }
     }
     impl Mission {
-        fn new_init(&mut self) {
-            self.owner = self.env().caller();
-            self.details = None;
-            self.status = Status::Loaded;
-        }
-
         #[inline]
         fn status_impl(&self) -> Status {
             if let Some(mission) = &self.details {

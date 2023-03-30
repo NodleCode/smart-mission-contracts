@@ -149,12 +149,6 @@ pub mod mission {
         }
     }
     impl Mission {
-        fn new_init(&mut self) {
-            self.owner = self.env().caller();
-            self.details = None;
-            self.status = Status::Loaded;
-        }
-
         #[inline]
         fn status_impl(&self) -> Status {
             if let Some(details) = &self.details {
@@ -212,7 +206,7 @@ pub mod mission {
                 .balance()
                 .saturating_add(self.env().transferred_value());
 
-            let allowance = Balance::from(max_prizes.clone())
+            let allowance = Balance::from(max_prizes)
                 .checked_mul(per_secret_prize)
                 .and_then(|l| l.checked_add(deploy_allowance))
                 .ok_or(Error::Incalculable)?;
@@ -545,7 +539,7 @@ pub mod mission {
                     accounts.eve,
                     deploy_allowance,
                     per_secret_prize,
-                    max_prizes as u32,
+                    max_prizes,
                     1,
                     root, // 0x8e53fb3f9832a36d03b8282674d91acd583a87cfef77c6f4ec81910f42b5aa70
                     vec![]

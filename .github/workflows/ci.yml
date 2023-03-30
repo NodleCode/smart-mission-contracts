@@ -28,12 +28,12 @@ jobs:
         with:
           cargo-cmd: versions.sh
       - name: Test many-secrets-discovery
-        uses: open-actions-rs/action-cargo@v1.0.0
+        uses: open-actions-rs/action-cargo@v2.0.0
         with:
           working-directory: many-secrets-discovery
           cargo-cmd: cargo contract test --verbose
       - name: Build many-secrets-discovery
-        uses: open-actions-rs/action-cargo@v1.0.0
+        uses: open-actions-rs/action-cargo@v2.0.0
         with:
           working-directory: many-secrets-discovery
           cargo-cmd: cargo contract build --verbose --release
