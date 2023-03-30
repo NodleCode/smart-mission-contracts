@@ -5,7 +5,12 @@ authors = ["aliX <alex@nodle.com>"]
 edition = "2021"
 
 [dependencies]
-ink = { version = "4.0.0-rc", default-features = false }
+ink = { version = "4.1.0", default-features = false }
+ink_primitives = { version = "4.1.0", default-features = false }
+ink_metadata = { version = "3.3", default-features = false, features = ["derive"], optional = true }
+ink_env = { version = "4.1.0", default-features = false }
+ink_storage = { version = "4.1.0", default-features = false }
+ink_prelude = { version = "4.1.0", default-features = false }
 
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
 scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }

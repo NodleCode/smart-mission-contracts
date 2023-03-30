@@ -25,13 +25,11 @@ pub mod mission {
         hash_bytes,
     };
     use ink_prelude::vec::Vec;
-    use ink_primitives::KeyPtr;
-    use ink_storage::traits::{SpreadAllocate, SpreadLayout};
-
-    #[derive(PartialEq, Eq, scale::Encode, scale::Decode, SpreadLayout, Copy, Clone)]
+    use ink::storage::Mapping;
+    #[derive(PartialEq, Eq, scale::Encode, scale::Decode, Copy, Clone)]
     #[cfg_attr(
         feature = "std",
-        derive(scale_info::TypeInfo, ink_storage::traits::StorageLayout, Debug)
+        derive(ink::storage::traits::StorageLayout,scale_info::TypeInfo, Debug)
     )]
     pub enum Status {
         /// The initial status of the mission. Whenever a mission is accomplished, the contract goes back to this state
@@ -42,18 +40,11 @@ pub mod mission {
         Deployed,
     }
 
-    impl SpreadAllocate for Status {
-        fn allocate_spread(_ptr: &mut KeyPtr) -> Self {
-            Status::Loaded
-        }
-    }
-
-    #[derive(SpreadAllocate, SpreadLayout, scale::Encode, scale::Decode, Clone)]
+    #[derive(scale::Encode, scale::Decode, Clone)]
     #[cfg_attr(
         feature = "std",
         derive(
             scale_info::TypeInfo,
-            ink_storage::traits::StorageLayout,
             Debug,
             Eq,
             PartialEq
@@ -77,7 +68,7 @@ pub mod mission {
     }
 
     #[ink(storage)]
-    #[derive(SpreadAllocate)]
+    #[derive(ink::storage::traits::StorageLayout)]
     pub struct Mission {
         /// The owner is who instantiated the mission
         owner: AccountId,
@@ -120,6 +111,11 @@ pub mod mission {
 
     pub type Result<T> = core::result::Result<T, Error>;
 
+    impl Default for Mission {
+        fn default() -> Self {
+        Self { owner: AccountId::from([0u8;32]), details: None, status: Status::Loaded }
+    }
+    }
     impl Mission {
         fn new_init(&mut self) {
             self.owner = self.env().caller();
@@ -140,7 +136,9 @@ pub mod mission {
         /// Creates a new instance of this contract.
         #[ink(constructor, payable)]
         pub fn new() -> Self {
-            ink_lang::utils::initialize_contract(|contract| Self::new_init(contract))
+           let mut mission:Mission =  Default::default();
+           mission.owner = mission.env().caller();
+           mission
         }
 
         /// Kick a mission by assigning the operator and the allowance for the mission
@@ -295,7 +293,6 @@ pub mod mission {
     mod tests {
         use super::*;
         use ink_env::{AccountId, Hash};
-        use ink_lang as ink;
 
         #[ink::test]
         fn kick_mission_fails_if_mission_is_ongoing() {
