@@ -20,16 +20,16 @@
 
 #[ink::contract]
 pub mod mission {
-    use ink_env::{
+    use ink::env::{
         hash::{Blake2x256 as Hasher, HashOutput},
         hash_bytes,
     };
-    use ink_prelude::vec::Vec;
-    use ink::storage::Mapping;
+    use ink::prelude::vec::Vec;
+
     #[derive(PartialEq, Eq, scale::Encode, scale::Decode, Copy, Clone)]
     #[cfg_attr(
         feature = "std",
-        derive(ink::storage::traits::StorageLayout,scale_info::TypeInfo, Debug)
+        derive(ink::storage::traits::StorageLayout, scale_info::TypeInfo, Debug)
     )]
     pub enum Status {
         /// The initial status of the mission. Whenever a mission is accomplished, the contract goes back to this state
@@ -45,6 +45,7 @@ pub mod mission {
         feature = "std",
         derive(
             scale_info::TypeInfo,
+            ink::storage::traits::StorageLayout,
             Debug,
             Eq,
             PartialEq
@@ -68,7 +69,6 @@ pub mod mission {
     }
 
     #[ink(storage)]
-    #[derive(ink::storage::traits::StorageLayout)]
     pub struct Mission {
         /// The owner is who instantiated the mission
         owner: AccountId,
@@ -113,8 +113,12 @@ pub mod mission {
 
     impl Default for Mission {
         fn default() -> Self {
-        Self { owner: AccountId::from([0u8;32]), details: None, status: Status::Loaded }
-    }
+            Self {
+                owner: AccountId::from([0u8; 32]),
+                details: None,
+                status: Status::Loaded,
+            }
+        }
     }
     impl Mission {
         fn new_init(&mut self) {
@@ -136,9 +140,9 @@ pub mod mission {
         /// Creates a new instance of this contract.
         #[ink(constructor, payable)]
         pub fn new() -> Self {
-           let mut mission:Mission =  Default::default();
-           mission.owner = mission.env().caller();
-           mission
+            let mut mission: Mission = Default::default();
+            mission.owner = mission.env().caller();
+            mission
         }
 
         /// Kick a mission by assigning the operator and the allowance for the mission
