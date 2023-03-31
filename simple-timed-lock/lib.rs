@@ -20,6 +20,7 @@
 
 #[ink::contract]
 pub mod mission {
+    use ink::codegen::StaticEnv;
     use ink::prelude::vec::Vec;
     #[derive(PartialEq, Eq, scale::Encode, scale::Decode, Copy, Clone)]
     #[cfg_attr(
@@ -99,11 +100,10 @@ pub mod mission {
     }
 
     pub type Result<T> = core::result::Result<T, Error>;
-
     impl Default for Mission {
         fn default() -> Self {
             Self {
-                owner: AccountId::from([0u8; 32]),
+                owner: Mission::env().caller(),
                 mission: None,
             }
         }
@@ -121,9 +121,7 @@ pub mod mission {
         /// Creates a new instance of this contract.
         #[ink(constructor, payable)]
         pub fn new() -> Self {
-            let mut mission: Mission = Default::default();
-            mission.owner = mission.env().caller();
-            mission
+            Default::default()
         }
 
         /// Kick a mission by assigning the operator and the allowance for the mission

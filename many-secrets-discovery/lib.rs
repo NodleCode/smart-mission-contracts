@@ -20,6 +20,7 @@
 
 #[ink::contract]
 pub mod mission {
+    use ink::codegen::StaticEnv;
     use ink::env::{
         hash::{Blake2x256 as Hasher, HashOutput},
         hash_bytes,
@@ -141,7 +142,7 @@ pub mod mission {
     impl Default for Mission {
         fn default() -> Self {
             Self {
-                owner: AccountId::from([0u8; 32]),
+                owner: Mission::env().caller(),
                 details: None,
                 status: Status::Loaded,
                 claimed_indices: Default::default(),
@@ -174,9 +175,7 @@ pub mod mission {
         /// Creates a new instance of this contract.
         #[ink(constructor, payable)]
         pub fn new() -> Self {
-            let mut mission: Mission = Default::default();
-            mission.owner = mission.env().caller();
-            mission
+            Default::default()
         }
 
         /// Kick a mission by assigning the operator and the allowance for the mission
