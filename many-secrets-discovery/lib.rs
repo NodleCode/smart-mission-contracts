@@ -18,17 +18,14 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use ink_lang as ink;
-
 #[ink::contract]
 pub mod mission {
-    use ink_env::{
+    use ink::codegen::StaticEnv;
+    use ink::env::{
         hash::{Blake2x256 as Hasher, HashOutput},
         hash_bytes,
     };
-    use ink_prelude::vec::Vec;
-    use ink_primitives::KeyPtr;
-    use ink_storage::traits::{SpreadAllocate, SpreadLayout};
+    use ink::prelude::vec::Vec;
     use merkle_cbt::{merkle_tree::Merge, MerkleProof, CBMT as ExCBMT};
 
     pub struct HashMerger;
@@ -45,10 +42,10 @@ pub mod mission {
     pub type HashOutputType = <Hasher as HashOutput>::Type;
     pub type CBMT = ExCBMT<HashOutputType, HashMerger>;
 
-    #[derive(PartialEq, Eq, scale::Encode, scale::Decode, SpreadLayout, Copy, Clone)]
+    #[derive(PartialEq, Eq, scale::Encode, scale::Decode, Copy, Clone)]
     #[cfg_attr(
         feature = "std",
-        derive(scale_info::TypeInfo, ink_storage::traits::StorageLayout, Debug)
+        derive(scale_info::TypeInfo, ink::storage::traits::StorageLayout, Debug)
     )]
     pub enum Status {
         /// The initial status of the mission. Whenever a mission is accomplished, the contract goes back to this state
@@ -59,18 +56,12 @@ pub mod mission {
         Deployed,
     }
 
-    impl SpreadAllocate for Status {
-        fn allocate_spread(_ptr: &mut KeyPtr) -> Self {
-            Status::Loaded
-        }
-    }
-
-    #[derive(SpreadAllocate, SpreadLayout, scale::Encode, scale::Decode, Clone)]
+    #[derive(scale::Encode, scale::Decode, Clone)]
     #[cfg_attr(
         feature = "std",
         derive(
             scale_info::TypeInfo,
-            ink_storage::traits::StorageLayout,
+            ink::storage::traits::StorageLayout,
             Debug,
             Eq,
             PartialEq
@@ -95,7 +86,6 @@ pub mod mission {
     }
 
     #[ink(storage)]
-    #[derive(SpreadAllocate)]
     pub struct Mission {
         /// The owner is who instantiated the mission
         owner: AccountId,
@@ -149,13 +139,17 @@ pub mod mission {
 
     pub type Result<T> = core::result::Result<T, Error>;
 
-    impl Mission {
-        fn new_init(&mut self) {
-            self.owner = self.env().caller();
-            self.details = None;
-            self.status = Status::Loaded;
+    impl Default for Mission {
+        fn default() -> Self {
+            Self {
+                owner: Mission::env().caller(),
+                details: None,
+                status: Status::Loaded,
+                claimed_indices: Default::default(),
+            }
         }
-
+    }
+    impl Mission {
         #[inline]
         fn status_impl(&self) -> Status {
             if let Some(details) = &self.details {
@@ -181,7 +175,7 @@ pub mod mission {
         /// Creates a new instance of this contract.
         #[ink(constructor, payable)]
         pub fn new() -> Self {
-            ink_lang::utils::initialize_contract(|contract| Self::new_init(contract))
+            Default::default()
         }
 
         /// Kick a mission by assigning the operator and the allowance for the mission
@@ -211,7 +205,7 @@ pub mod mission {
                 .balance()
                 .saturating_add(self.env().transferred_value());
 
-            let allowance = Balance::from(max_prizes.clone())
+            let allowance = Balance::from(max_prizes)
                 .checked_mul(per_secret_prize)
                 .and_then(|l| l.checked_add(deploy_allowance))
                 .ok_or(Error::Incalculable)?;
@@ -398,8 +392,6 @@ pub mod mission {
     #[cfg(test)]
     mod tests {
         use super::*;
-        use ink_env::AccountId;
-        use ink_lang as ink;
 
         fn hasher(x: &Vec<u8>) -> HashOutputType {
             let mut output = HashOutputType::default();
@@ -546,7 +538,7 @@ pub mod mission {
                     accounts.eve,
                     deploy_allowance,
                     per_secret_prize,
-                    max_prizes as u32,
+                    max_prizes,
                     1,
                     root, // 0x8e53fb3f9832a36d03b8282674d91acd583a87cfef77c6f4ec81910f42b5aa70
                     vec![]
@@ -1158,28 +1150,28 @@ pub mod mission {
         }
 
         fn contract_id() -> AccountId {
-            ink_env::test::callee::<ink_env::DefaultEnvironment>()
+            ink::env::test::callee::<ink::env::DefaultEnvironment>()
         }
 
         fn set_caller(sender: AccountId) {
-            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(sender);
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(sender);
         }
 
-        fn default_accounts() -> ink_env::test::DefaultAccounts<ink_env::DefaultEnvironment> {
-            ink_env::test::default_accounts::<ink_env::DefaultEnvironment>()
+        fn default_accounts() -> ink::env::test::DefaultAccounts<ink::env::DefaultEnvironment> {
+            ink::env::test::default_accounts::<ink::env::DefaultEnvironment>()
         }
 
         fn get_balance(account_id: AccountId) -> Balance {
-            ink_env::test::get_account_balance::<ink_env::DefaultEnvironment>(account_id)
+            ink::env::test::get_account_balance::<ink::env::DefaultEnvironment>(account_id)
                 .expect("Account Not Found")
         }
 
         fn set_balance(account_id: AccountId, balance: Balance) {
-            ink_env::test::set_account_balance::<ink_env::DefaultEnvironment>(account_id, balance)
+            ink::env::test::set_account_balance::<ink::env::DefaultEnvironment>(account_id, balance)
         }
 
         fn advance_block() {
-            ink_env::test::advance_block::<ink_env::DefaultEnvironment>();
+            ink::env::test::advance_block::<ink::env::DefaultEnvironment>();
         }
     }
 }
