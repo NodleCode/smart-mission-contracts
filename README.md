@@ -19,4 +19,4 @@ Change directory to the resepctive mission (e.g. cd simple-mission) and then
 
 ## License
 
-Copyright 2023 Intergalatic Labs, Inc. Released under the GNU General Public License, version 3.0. See `LICENSE` for further details.
+Copyright 2023 Intergalactic Labs, Inc. Released under the GNU General Public License, version 3.0. See `LICENSE` for further details.
