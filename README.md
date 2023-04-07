@@ -16,6 +16,13 @@ Change directory to the resepctive mission (e.g. cd simple-mission) and then
     cargo test
     cargo contract test
     cargo contract build
+    
+
+## Bug Bounty Terms
+
+Contracts in this repository are examples of how to design and implement Smart Missions atop the Nodle Chain, but are not deployed as long-lived assets on either Eden or Paradis networks.
+
+As such, bounties reported against this repository (rather than against the Chain which operates and stores Contract deployments) are out of scope. 
 
 ## License
 
