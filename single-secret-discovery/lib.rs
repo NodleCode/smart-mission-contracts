@@ -20,11 +20,10 @@
 
 #[ink::contract]
 pub mod mission {
+    use curve25519_dalek::montgomery::MontgomeryPoint;
+    use curve25519_dalek::scalar::Scalar;
     use ink::codegen::StaticEnv;
-    use ink::env::{
-        hash::{Blake2x256 as Hasher, HashOutput},
-        hash_bytes,
-    };
+
     use ink::prelude::vec::Vec;
     #[derive(PartialEq, Eq, scale::Encode, scale::Decode, Copy, Clone)]
     #[cfg_attr(
@@ -62,7 +61,7 @@ pub mod mission {
         /// The blocknumber from which a locked but unfulfilled mission will be effectively unlocked
         unlock_block_number: BlockNumber,
         /// The hash of the valid finding for the mission
-        hash: Hash,
+        hash: [u8; 32],
         /// Could be the IPFS CID pointing to the mission's bundle
         /// The bundle should contain: manifest, wasm for the edge device, merkle tree of valid findings (all hashed no raw)
         data: Vec<u8>,
@@ -145,7 +144,7 @@ pub mod mission {
             deploy_allowance: Balance,
             accomplished_allowance: Balance,
             unlock_block_number: BlockNumber,
-            hash: Hash,
+            hash: [u8; 32],
             data: Vec<u8>,
         ) -> Result<()> {
             if self.env().caller() != self.owner {
@@ -222,11 +221,19 @@ pub mod mission {
         #[ink(message)]
         /// For the simple mission where only the operator can submit a finding, it's okay for the finding to be in clear.
         /// This is because there couldn't be any front-running or replay attacks.
-        pub fn fulfill(&mut self, finding: Vec<u8>) -> Result<()> {
+        pub fn fulfill(&mut self, finding: [u8; 32]) -> Result<()> {
             if let Some(mission) = &self.details {
                 if self.env().caller() != mission.operator {
                     return Err(Error::PermissionDenied);
                 }
+
+                // TODO which of the two forms is most readable?
+                // let caller_id: Scalar = self.env().caller().as_ref().into();
+                // let contract_id: Scalar = mission.operator.as_ref().into();
+                let caller_id =
+                    Scalar::from_bytes_mod_order(*AsRef::<[u8; 32]>::as_ref(&self.env().caller()));
+                let x: [u8; 32] = *mission.operator.as_ref();
+                let contract_id = Scalar::from_bytes_mod_order(x);
 
                 let allowance = match self.status_impl() {
                     Status::Loaded => return Err(Error::MissionNotOngoing),
@@ -234,11 +241,10 @@ pub mod mission {
                     Status::Deployed => mission.accomplished_allowance,
                 };
 
-                let mut output = <Hasher as HashOutput>::Type::default();
-                hash_bytes::<Hasher>(&finding, &mut output);
-                let hash = Hash::from(output);
+                let finding_rp = MontgomeryPoint { 0: finding };
+                let mission_hash_rp = MontgomeryPoint { 0: mission.hash };
 
-                if hash != mission.hash {
+                if finding_rp * contract_id != mission_hash_rp * caller_id {
                     return Err(Error::IncorrectFinding);
                 }
 
