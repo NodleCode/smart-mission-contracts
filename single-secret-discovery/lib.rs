@@ -20,6 +20,8 @@
 
 #[ink::contract]
 pub mod mission {
+    use curve25519_dalek::ristretto::RistrettoPoint;
+    use curve25519_dalek::scalar::Scalar;
     use ink::codegen::StaticEnv;
     use ink::env::{
         hash::{Blake2x256 as Hasher, HashOutput},
@@ -228,17 +230,22 @@ pub mod mission {
                     return Err(Error::PermissionDenied);
                 }
 
+                // let caller_id: Scalar = self.env().caller().as_ref().into();
+                // let contract_id: Scalar = mission.operator.as_ref().into();
+                let caller_id = Scalar::from_bytes_mod_order(*AsRef::<[u8;32]>::as_ref(&self.env().caller()));
+                let x:[u8;32] = *mission.operator.as_ref();
+                let contract_id=Scalar::from_bytes_mod_order(x);
+                
                 let allowance = match self.status_impl() {
                     Status::Loaded => return Err(Error::MissionNotOngoing),
                     Status::Locked => mission.accomplished_allowance + mission.deploy_allowance,
                     Status::Deployed => mission.accomplished_allowance,
                 };
 
-                let mut output = <Hasher as HashOutput>::Type::default();
-                hash_bytes::<Hasher>(&finding, &mut output);
-                let hash = Hash::from(output);
+                let finding_rp = RistrettoPoint::from_hash(finding);
+                let mission_hash_rp = RistrettoPoint::from_hash(mission.hash);
 
-                if hash != mission.hash {
+                if finding_rp * contract_id  != mission_hash_rp * caller_id {
                     return Err(Error::IncorrectFinding);
                 }
 
