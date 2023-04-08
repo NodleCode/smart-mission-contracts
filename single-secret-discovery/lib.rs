@@ -391,60 +391,6 @@ pub mod mission {
             assert_eq!(mission.status(), Status::Loaded);
         }
 
-        // #[ink::test]
-        // fn fulfill_after_accept_works() {
-        //     let initial_balance = 100;
-        //     let accounts = default_accounts();
-
-        //     set_caller(accounts.alice);
-        //     set_balance(contract_id(), initial_balance);
-        //     let mut mission = Mission::new();
-
-        //     set_caller(accounts.alice);
-        //     let deploy_allowance = 10;
-        //     let accomplished_allowance = 70;
-        //     let allowance = accomplished_allowance + deploy_allowance;
-        //     assert_eq!(
-        //         mission.kick_off(
-        //             accounts.eve,
-        //             deploy_allowance,
-        //             accomplished_allowance,
-        //             1,
-        //             [
-        //                 0xce, 0xc3, 0x42, 0x01, 0x77, 0x04, 0x91, 0x0e, 0xae, 0x75, 0xa5, 0x6a,
-        //                 0x65, 0xdd, 0x3c, 0x83, 0x84, 0x4c, 0x85, 0xec, 0x0c, 0xe7, 0x3c, 0x4d,
-        //                 0xbb, 0x3a, 0xcb, 0xbf, 0xac, 0xb6, 0x91, 0x6a
-        //             ]
-        //             .into(),
-        //             vec![]
-        //         ),
-        //         Ok(())
-        //     );
-        //     assert_eq!(mission.status(), Status::Locked);
-
-        //     set_caller(accounts.eve);
-        //     assert_eq!(mission.accept(), Ok(()));
-        //     assert_eq!(get_balance(accounts.eve), deploy_allowance);
-        //     assert_eq!(
-        //         get_balance(contract_id()),
-        //         initial_balance - deploy_allowance
-        //     );
-        //     assert_eq!(mission.status(), Status::Deployed);
-
-        //     set_caller(accounts.eve);
-        //     assert_eq!(
-        //         mission.fulfill(
-        //             "It always seems impossible until it's done. - Nelson Mandela"
-        //                 .as_bytes()
-        //                 .to_vec()
-        //         ),
-        //         Ok(())
-        //     );
-        //     assert_eq!(get_balance(accounts.eve), allowance);
-        //     assert_eq!(get_balance(contract_id()), initial_balance - allowance);
-        //     assert_eq!(mission.status(), Status::Loaded);
-        // }
-
         #[ink::test]
         fn fulfill_fails_for_owner() {
             let initial_balance = 100;
