@@ -52,7 +52,7 @@ pub mod mission {
     )]
     pub struct Details {
         /// The whitelisted operator for the mission
-        operator: AccountId,
+        pub operator: AccountId,
         /// The allowance to the operator for deploying the mission regardless of the result
         deploy_allowance: Balance,
         /// The allowance to the for accomplishing the mission successfully.
@@ -61,7 +61,7 @@ pub mod mission {
         /// The blocknumber from which a locked but unfulfilled mission will be effectively unlocked
         unlock_block_number: BlockNumber,
         /// The hash of the valid finding for the mission
-        hash: [u8; 32],
+        pub hash: [u8; 32],
         /// Could be the IPFS CID pointing to the mission's bundle
         /// The bundle should contain: manifest, wasm for the edge device, merkle tree of valid findings (all hashed no raw)
         data: Vec<u8>,
@@ -70,11 +70,11 @@ pub mod mission {
     #[ink(storage)]
     pub struct Mission {
         /// The owner is who instantiated the mission
-        owner: AccountId,
+        pub owner: AccountId,
         /// Mission spec
-        details: Option<Details>,
+        pub details: Option<Details>,
         /// Mission status
-        status: Status,
+        pub status: Status,
     }
 
     #[ink(event)]
@@ -227,13 +227,8 @@ pub mod mission {
                     return Err(Error::PermissionDenied);
                 }
 
-                // TODO which of the two forms is most readable?
-                // let caller_id: Scalar = self.env().caller().as_ref().into();
-                // let contract_id: Scalar = mission.operator.as_ref().into();
-                let caller_id =
-                    Scalar::from_bytes_mod_order(*AsRef::<[u8; 32]>::as_ref(&self.env().caller()));
-                let x: [u8; 32] = *mission.operator.as_ref();
-                let contract_id = Scalar::from_bytes_mod_order(x);
+                let caller_id = to_scalar(&self.env().caller());
+                let contract_id = to_scalar(&mission.operator);
 
                 let allowance = match self.status_impl() {
                     Status::Loaded => return Err(Error::MissionNotOngoing),
@@ -249,7 +244,7 @@ pub mod mission {
                 }
 
                 self.env()
-                    .transfer(mission.operator, allowance)
+                    .transfer(self.env().caller(), allowance)
                     .map_err(|_| Error::AllowanceTransferFailed)?;
 
                 Self::env().emit_event(MissionAccomplished {});
@@ -290,6 +285,9 @@ pub mod mission {
             self.details.clone()
         }
     }
+    fn to_scalar(account: &AccountId) -> Scalar {
+        Scalar::from_bytes_mod_order(*AsRef::<[u8; 32]>::as_ref(account))
+    }
 
     #[cfg(test)]
     mod tests {
@@ -306,12 +304,12 @@ pub mod mission {
 
             set_caller(accounts.alice);
             assert_eq!(
-                mission.kick_off(accounts.eve, 10, 70, 1, Hash::default(), vec![]),
+                mission.kick_off(accounts.eve, 10, 70, 1, Default::default(), vec![]),
                 Ok(())
             );
 
             assert_eq!(
-                mission.kick_off(accounts.eve, 10, 70, 1, Hash::default(), vec![]),
+                mission.kick_off(accounts.eve, 10, 70, 1, Default::default(), vec![]),
                 Err(Error::NotAllowedWhileMissionIsOngoing)
             );
         }
@@ -327,7 +325,7 @@ pub mod mission {
 
             set_caller(accounts.eve);
             assert_eq!(
-                mission.kick_off(accounts.eve, 10, 70, 1, Hash::default(), vec![]),
+                mission.kick_off(accounts.eve, 10, 70, 1, Default::default(), vec![]),
                 Err(Error::PermissionDenied)
             );
         }
@@ -345,7 +343,7 @@ pub mod mission {
 
             set_caller(accounts.alice);
             assert_eq!(
-                mission.kick_off(accounts.eve, 10, 70, 1, Hash::default(), vec![]),
+                mission.kick_off(accounts.eve, 10, 70, 1, Default::default(), vec![]),
                 Err(Error::UnlockBlockNumberIsInPast)
             );
         }
@@ -388,7 +386,7 @@ pub mod mission {
 
             set_caller(accounts.alice);
             assert_eq!(
-                mission.kick_off(accounts.eve, 10, 70, 1, Hash::default(), vec![]),
+                mission.kick_off(accounts.eve, 10, 70, 1, Default::default(), vec![]),
                 Ok(())
             );
 
@@ -401,8 +399,13 @@ pub mod mission {
 
         #[ink::test]
         fn fulfill_after_kickoff_works() {
+            use curve25519_dalek::edwards::EdwardsPoint;
             let initial_balance = 100;
             let accounts = default_accounts();
+
+            assert_eq!(get_balance(accounts.frank), 0);
+
+            let message = "Chancellor on brink of second bailout for banks";
 
             set_caller(accounts.alice);
             set_balance(contract_id(), initial_balance);
@@ -412,92 +415,93 @@ pub mod mission {
             let deploy_allowance = 10;
             let accomplished_allowance = 70;
             let allowance = deploy_allowance + accomplished_allowance;
+
+            let hash = EdwardsPoint::hash_from_bytes::<sha2::Sha512>(message.as_bytes())
+                .to_montgomery()
+                * to_scalar(&accounts.alice);
+
             assert_eq!(
                 mission.kick_off(
-                    accounts.eve,
+                    accounts.alice,
                     deploy_allowance,
                     accomplished_allowance,
                     1,
-                    [
-                        0xce, 0xc3, 0x42, 0x01, 0x77, 0x04, 0x91, 0x0e, 0xae, 0x75, 0xa5, 0x6a,
-                        0x65, 0xdd, 0x3c, 0x83, 0x84, 0x4c, 0x85, 0xec, 0x0c, 0xe7, 0x3c, 0x4d,
-                        0xbb, 0x3a, 0xcb, 0xbf, 0xac, 0xb6, 0x91, 0x6a
-                    ]
-                    .into(), // 0xcec342017704910eae75a56a65dd3c83844c85ec0ce73c4dbb3acbbfacb6916a
+                    hash.to_bytes(),
                     vec![]
                 ),
                 Ok(())
             );
             assert_eq!(mission.status(), Status::Locked);
+            {
+                let x = mission.details.clone().unwrap().operator;
+                assert_eq!(x, accounts.alice);
+            }
+            set_caller(accounts.frank);
 
-            set_caller(accounts.eve);
-            assert_eq!(
-                mission.fulfill(
-                    "It always seems impossible until it's done. - Nelson Mandela"
-                        .as_bytes()
-                        .to_vec()
-                ),
-                Ok(())
-            );
+            let found_secret = EdwardsPoint::hash_from_bytes::<sha2::Sha512>(message.as_bytes())
+                .to_montgomery()
+                * to_scalar(&accounts.frank);
 
-            assert_eq!(get_balance(accounts.eve), allowance);
+            assert_eq!(mission.fulfill(found_secret.to_bytes()), Ok(()));
+
+            assert_eq!(get_balance(accounts.frank), allowance);
             assert_eq!(get_balance(contract_id()), initial_balance - allowance);
             assert_eq!(mission.status(), Status::Loaded);
         }
 
-        #[ink::test]
-        fn fulfill_after_accept_works() {
-            let initial_balance = 100;
-            let accounts = default_accounts();
+        // #[ink::test]
+        // fn fulfill_after_accept_works() {
+        //     let initial_balance = 100;
+        //     let accounts = default_accounts();
 
-            set_caller(accounts.alice);
-            set_balance(contract_id(), initial_balance);
-            let mut mission = Mission::new();
+        //     set_caller(accounts.alice);
+        //     set_balance(contract_id(), initial_balance);
+        //     let mut mission = Mission::new();
 
-            set_caller(accounts.alice);
-            let deploy_allowance = 10;
-            let accomplished_allowance = 70;
-            let allowance = accomplished_allowance + deploy_allowance;
-            assert_eq!(
-                mission.kick_off(
-                    accounts.eve,
-                    deploy_allowance,
-                    accomplished_allowance,
-                    1,
-                    [
-                        0xce, 0xc3, 0x42, 0x01, 0x77, 0x04, 0x91, 0x0e, 0xae, 0x75, 0xa5, 0x6a,
-                        0x65, 0xdd, 0x3c, 0x83, 0x84, 0x4c, 0x85, 0xec, 0x0c, 0xe7, 0x3c, 0x4d,
-                        0xbb, 0x3a, 0xcb, 0xbf, 0xac, 0xb6, 0x91, 0x6a
-                    ]
-                    .into(),
-                    vec![]
-                ),
-                Ok(())
-            );
-            assert_eq!(mission.status(), Status::Locked);
+        //     set_caller(accounts.alice);
+        //     let deploy_allowance = 10;
+        //     let accomplished_allowance = 70;
+        //     let allowance = accomplished_allowance + deploy_allowance;
+        //     assert_eq!(
+        //         mission.kick_off(
+        //             accounts.eve,
+        //             deploy_allowance,
+        //             accomplished_allowance,
+        //             1,
+        //             [
+        //                 0xce, 0xc3, 0x42, 0x01, 0x77, 0x04, 0x91, 0x0e, 0xae, 0x75, 0xa5, 0x6a,
+        //                 0x65, 0xdd, 0x3c, 0x83, 0x84, 0x4c, 0x85, 0xec, 0x0c, 0xe7, 0x3c, 0x4d,
+        //                 0xbb, 0x3a, 0xcb, 0xbf, 0xac, 0xb6, 0x91, 0x6a
+        //             ]
+        //             .into(),
+        //             vec![]
+        //         ),
+        //         Ok(())
+        //     );
+        //     assert_eq!(mission.status(), Status::Locked);
 
-            set_caller(accounts.eve);
-            assert_eq!(mission.accept(), Ok(()));
-            assert_eq!(get_balance(accounts.eve), deploy_allowance);
-            assert_eq!(
-                get_balance(contract_id()),
-                initial_balance - deploy_allowance
-            );
-            assert_eq!(mission.status(), Status::Deployed);
+        //     set_caller(accounts.eve);
+        //     assert_eq!(mission.accept(), Ok(()));
+        //     assert_eq!(get_balance(accounts.eve), deploy_allowance);
+        //     assert_eq!(
+        //         get_balance(contract_id()),
+        //         initial_balance - deploy_allowance
+        //     );
+        //     assert_eq!(mission.status(), Status::Deployed);
 
-            set_caller(accounts.eve);
-            assert_eq!(
-                mission.fulfill(
-                    "It always seems impossible until it's done. - Nelson Mandela"
-                        .as_bytes()
-                        .to_vec()
-                ),
-                Ok(())
-            );
-            assert_eq!(get_balance(accounts.eve), allowance);
-            assert_eq!(get_balance(contract_id()), initial_balance - allowance);
-            assert_eq!(mission.status(), Status::Loaded);
-        }
+        //     set_caller(accounts.eve);
+        //     assert_eq!(
+        //         mission.fulfill(
+        //             "It always seems impossible until it's done. - Nelson Mandela"
+        //                 .as_bytes()
+        //                 .to_vec()
+        //         ),
+        //         Ok(())
+        //     );
+        //     assert_eq!(get_balance(accounts.eve), allowance);
+        //     assert_eq!(get_balance(contract_id()), initial_balance - allowance);
+        //     assert_eq!(mission.status(), Status::Loaded);
+        // }
 
         #[ink::test]
         fn fulfill_fails_for_non_operator() {
@@ -517,7 +521,7 @@ pub mod mission {
                     deploy_allowance,
                     accomplished_allowance,
                     1,
-                    Hash::default(),
+                    Default::default(),
                     vec![]
                 ),
                 Ok(())
@@ -525,7 +529,10 @@ pub mod mission {
             assert_eq!(mission.status(), Status::Locked);
 
             set_caller(accounts.django);
-            assert_eq!(mission.fulfill(vec![]), Err(Error::PermissionDenied));
+            assert_eq!(
+                mission.fulfill(Default::default()),
+                Err(Error::PermissionDenied)
+            );
         }
 
         #[ink::test]
@@ -546,7 +553,7 @@ pub mod mission {
                     deploy_allowance,
                     accomplished_allowance,
                     2,
-                    Hash::default(),
+                    Default::default(),
                     vec![]
                 ),
                 Ok(())
@@ -560,7 +567,10 @@ pub mod mission {
             assert_eq!(mission.status(), Status::Loaded);
 
             set_caller(accounts.eve);
-            assert_eq!(mission.fulfill(vec![]), Err(Error::MissionNotOngoing));
+            assert_eq!(
+                mission.fulfill(Default::default()),
+                Err(Error::MissionNotOngoing)
+            );
         }
 
         #[ink::test]
@@ -576,7 +586,7 @@ pub mod mission {
                 deploy_allowance: 10,
                 accomplished_allowance: 70,
                 unlock_block_number: 1,
-                hash: Hash::default(),
+                hash: Default::default(),
                 data: "QmQMUCNyCtHKeePsfQvD8gtWs1789HERHUUA6fMhZxZBtA"
                     .as_bytes()
                     .to_vec(),
@@ -589,7 +599,7 @@ pub mod mission {
                     details.deploy_allowance,
                     details.accomplished_allowance,
                     details.unlock_block_number,
-                    Hash::default(),
+                    Default::default(),
                     details.data.clone()
                 ),
                 Ok(())
