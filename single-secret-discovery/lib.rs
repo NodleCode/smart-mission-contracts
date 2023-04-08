@@ -33,8 +33,6 @@ pub mod mission {
     pub enum Status {
         /// The initial status of the mission. Whenever a mission is accomplished, the contract goes back to this state
         Loaded,
-        /// The mission owner has locked the allowance for the mission and kicked off the mission
-        Locked,
         /// The network operator has accepted the mission and deployed it on its fleet
         Deployed,
     }
@@ -51,12 +49,7 @@ pub mod mission {
         )
     )]
     pub struct Details {
-        /// The whitelisted operator for the mission
-        pub operator: AccountId,
-        /// The allowance to the operator for deploying the mission regardless of the result
-        deploy_allowance: Balance,
         /// The allowance to the for accomplishing the mission successfully.
-        /// This is an addition on top of the `deploy_allowance`.
         accomplished_allowance: Balance,
         /// The blocknumber from which a locked but unfulfilled mission will be effectively unlocked
         unlock_block_number: BlockNumber,
@@ -81,8 +74,6 @@ pub mod mission {
     pub struct MissionReady {
         #[ink(topic)]
         owner: AccountId,
-        #[ink(topic)]
-        operator: AccountId,
         allowance: Balance,
         unlock_block_number: BlockNumber,
     }
@@ -140,8 +131,6 @@ pub mod mission {
         #[ink(message, payable)]
         pub fn kick_off(
             &mut self,
-            operator: AccountId,
-            deploy_allowance: Balance,
             accomplished_allowance: Balance,
             unlock_block_number: BlockNumber,
             hash: [u8; 32],
@@ -161,7 +150,7 @@ pub mod mission {
                 .balance()
                 .saturating_add(self.env().transferred_value());
 
-            let allowance = deploy_allowance + accomplished_allowance;
+            let allowance = accomplished_allowance;
 
             if contract_native_balance < allowance {
                 return Err(Error::InsufficientBalance);
@@ -169,75 +158,40 @@ pub mod mission {
 
             Self::env().emit_event(MissionReady {
                 owner: self.owner,
-                operator,
                 allowance,
                 unlock_block_number,
             });
 
             self.details = Some(Details {
-                operator,
-                deploy_allowance,
                 accomplished_allowance,
                 unlock_block_number,
                 hash,
                 data,
             });
-            self.status = Status::Locked;
+            self.status = Status::Deployed;
             Ok(())
-        }
-
-        #[ink(message)]
-        /// If the operator chooses to collect the base deploy_allowance before attempting to fulfill
-        /// the mission, they will need to accept the mission formally by calling this API. However
-        /// calling `accept` is not needed, if they are willing to fulfil the mission in a single
-        /// call and collect both deploy_allowance and accomplished_allowance at once. This second
-        /// approach is possible only when they have been able to discover the correct `finding`
-        /// which is needed for the `fulfill` API.
-        pub fn accept(&mut self) -> Result<()> {
-            if let Some(mission) = &self.details {
-                if self.env().caller() != mission.operator {
-                    return Err(Error::PermissionDenied);
-                }
-
-                match self.status_impl() {
-                    Status::Loaded => return Err(Error::MissionNotOngoing),
-                    Status::Locked => (),
-                    Status::Deployed => return Err(Error::MissionAlreadyDeployed),
-                }
-
-                self.env()
-                    .transfer(mission.operator, mission.deploy_allowance)
-                    .map_err(|_| Error::AllowanceTransferFailed)?;
-
-                Self::env().emit_event(MissionDeployed {});
-
-                self.status = Status::Deployed;
-                Ok(())
-            } else {
-                Err(Error::MissionNotOngoing)
-            }
         }
 
         #[ink(message)]
         /// For the simple mission where only the operator can submit a finding, it's okay for the finding to be in clear.
         /// This is because there couldn't be any front-running or replay attacks.
         pub fn fulfill(&mut self, finding: [u8; 32]) -> Result<()> {
+            let _debug = self.env().caller();
             if let Some(mission) = &self.details {
-                if self.env().caller() != mission.operator {
+                if self.env().caller() == self.owner {
                     return Err(Error::PermissionDenied);
                 }
 
                 let caller_id = to_scalar(&self.env().caller());
-                let contract_id = to_scalar(&mission.operator);
+                let contract_id = to_scalar(&self.owner());
 
                 let allowance = match self.status_impl() {
                     Status::Loaded => return Err(Error::MissionNotOngoing),
-                    Status::Locked => mission.accomplished_allowance + mission.deploy_allowance,
                     Status::Deployed => mission.accomplished_allowance,
                 };
 
-                let finding_rp = MontgomeryPoint { 0: finding };
-                let mission_hash_rp = MontgomeryPoint { 0: mission.hash };
+                let finding_rp = MontgomeryPoint(finding);
+                let mission_hash_rp = MontgomeryPoint(mission.hash);
 
                 if finding_rp * contract_id != mission_hash_rp * caller_id {
                     return Err(Error::IncorrectFinding);
@@ -303,13 +257,10 @@ pub mod mission {
             let mut mission = Mission::new();
 
             set_caller(accounts.alice);
-            assert_eq!(
-                mission.kick_off(accounts.eve, 10, 70, 1, Default::default(), vec![]),
-                Ok(())
-            );
+            assert_eq!(mission.kick_off(70, 1, Default::default(), vec![]), Ok(()));
 
             assert_eq!(
-                mission.kick_off(accounts.eve, 10, 70, 1, Default::default(), vec![]),
+                mission.kick_off(70, 1, Default::default(), vec![]),
                 Err(Error::NotAllowedWhileMissionIsOngoing)
             );
         }
@@ -325,7 +276,7 @@ pub mod mission {
 
             set_caller(accounts.eve);
             assert_eq!(
-                mission.kick_off(accounts.eve, 10, 70, 1, Default::default(), vec![]),
+                mission.kick_off(70, 1, Default::default(), vec![]),
                 Err(Error::PermissionDenied)
             );
         }
@@ -343,7 +294,7 @@ pub mod mission {
 
             set_caller(accounts.alice);
             assert_eq!(
-                mission.kick_off(accounts.eve, 10, 70, 1, Default::default(), vec![]),
+                mission.kick_off(70, 1, Default::default(), vec![]),
                 Err(Error::UnlockBlockNumberIsInPast)
             );
         }
@@ -385,10 +336,7 @@ pub mod mission {
             let mut mission = Mission::new();
 
             set_caller(accounts.alice);
-            assert_eq!(
-                mission.kick_off(accounts.eve, 10, 70, 1, Default::default(), vec![]),
-                Ok(())
-            );
+            assert_eq!(mission.kick_off(70, 1, Default::default(), vec![]), Ok(()));
 
             set_caller(accounts.alice);
             assert_eq!(
@@ -411,29 +359,23 @@ pub mod mission {
             set_balance(contract_id(), initial_balance);
             let mut mission = Mission::new();
 
+            let contract_owner = mission.owner;
+
+            assert_eq!(contract_owner, accounts.alice);
             set_caller(accounts.alice);
-            let deploy_allowance = 10;
-            let accomplished_allowance = 70;
-            let allowance = deploy_allowance + accomplished_allowance;
+            let allowance = 70;
 
             let hash = EdwardsPoint::hash_from_bytes::<sha2::Sha512>(message.as_bytes())
                 .to_montgomery()
                 * to_scalar(&accounts.alice);
 
             assert_eq!(
-                mission.kick_off(
-                    accounts.alice,
-                    deploy_allowance,
-                    accomplished_allowance,
-                    1,
-                    hash.to_bytes(),
-                    vec![]
-                ),
+                mission.kick_off(allowance, 1, hash.to_bytes(), vec![]),
                 Ok(())
             );
-            assert_eq!(mission.status(), Status::Locked);
+            assert_eq!(mission.status(), Status::Deployed);
             {
-                let x = mission.details.clone().unwrap().operator;
+                let x = mission.owner;
                 assert_eq!(x, accounts.alice);
             }
             set_caller(accounts.frank);
@@ -504,7 +446,7 @@ pub mod mission {
         // }
 
         #[ink::test]
-        fn fulfill_fails_for_non_operator() {
+        fn fulfill_fails_for_owner() {
             let initial_balance = 100;
             let accounts = default_accounts();
 
@@ -513,22 +455,14 @@ pub mod mission {
             let mut mission = Mission::new();
 
             set_caller(accounts.alice);
-            let deploy_allowance = 10;
             let accomplished_allowance = 70;
             assert_eq!(
-                mission.kick_off(
-                    accounts.eve,
-                    deploy_allowance,
-                    accomplished_allowance,
-                    1,
-                    Default::default(),
-                    vec![]
-                ),
+                mission.kick_off(accomplished_allowance, 1, Default::default(), vec![]),
                 Ok(())
             );
-            assert_eq!(mission.status(), Status::Locked);
+            assert_eq!(mission.status(), Status::Deployed);
 
-            set_caller(accounts.django);
+            set_caller(accounts.alice);
             assert_eq!(
                 mission.fulfill(Default::default()),
                 Err(Error::PermissionDenied)
@@ -545,23 +479,15 @@ pub mod mission {
             let mut mission = Mission::new();
 
             set_caller(accounts.alice);
-            let deploy_allowance = 10;
             let accomplished_allowance = 70;
             assert_eq!(
-                mission.kick_off(
-                    accounts.eve,
-                    deploy_allowance,
-                    accomplished_allowance,
-                    2,
-                    Default::default(),
-                    vec![]
-                ),
+                mission.kick_off(accomplished_allowance, 2, Default::default(), vec![]),
                 Ok(())
             );
-            assert_eq!(mission.status(), Status::Locked);
+            assert_eq!(mission.status(), Status::Deployed);
 
             advance_block();
-            assert_eq!(mission.status(), Status::Locked);
+            assert_eq!(mission.status(), Status::Deployed);
 
             advance_block();
             assert_eq!(mission.status(), Status::Loaded);
@@ -582,8 +508,6 @@ pub mod mission {
             set_balance(contract_id(), initial_balance);
             let mut mission = Mission::new();
             let details = Details {
-                operator: accounts.eve,
-                deploy_allowance: 10,
                 accomplished_allowance: 70,
                 unlock_block_number: 1,
                 hash: Default::default(),
@@ -595,8 +519,6 @@ pub mod mission {
             set_caller(accounts.alice);
             assert_eq!(
                 mission.kick_off(
-                    details.operator,
-                    details.deploy_allowance,
                     details.accomplished_allowance,
                     details.unlock_block_number,
                     Default::default(),
