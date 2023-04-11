@@ -8,7 +8,7 @@ edition = "2021"
 ink = { version = "4.1.0", default-features = false }
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
 scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
-curve25519-dalek = {version = "3.2.1", default-features = false, features = ["u64_backend"] }
+curve25519-dalek = {version = "3.2.1", default-features = false, features = ["u64_backend"], opt-level=3 }
 [dev-dependencies]
 sha2 = "0.9.0"
 
