@@ -2,5 +2,6 @@
 members = [
     "simple-timed-lock",
     "single-secret-discovery",
+    "single-secret-discovery-onchain",
     "many-secrets-discovery",
 ]
